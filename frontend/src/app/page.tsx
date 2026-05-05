@@ -7,8 +7,8 @@ import { Footer } from "@/components/Footer";
 export default function Home() {
   return (
     <main>
-      <Navbar />
       <MarqueeText />
+      <Navbar />
       <HeroSection />
       <AirdropForm />
       <Footer />

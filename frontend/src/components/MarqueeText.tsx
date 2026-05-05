@@ -5,7 +5,7 @@ export function MarqueeText() {
   const items = [TEXT, TEXT];
 
   return (
-    <div className="bg-black border-y-4 border-yellow-400 overflow-hidden py-2.5 relative z-50">
+    <div className="fixed top-0 left-0 right-0 bg-black border-b-4 border-yellow-400 overflow-hidden py-2.5 z-[60]">
       <div
         className="flex whitespace-nowrap"
         style={{ animation: "marquee 22s linear infinite", width: "max-content" }}
