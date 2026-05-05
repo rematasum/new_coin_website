@@ -13,11 +13,8 @@ export function WalletButton() {
 
   if (isWrongChain) {
     return (
-      <button
-        onClick={() => switchChain({ chainId: targetChain.id })}
-        className="px-4 py-2 rounded-bubble bg-accent-yellow text-surface font-black text-sm shadow-bubble transition-all hover:-translate-y-0.5"
-      >
-        Switch to Base
+      <button onClick={() => switchChain({ chainId: targetChain.id })} className="btn-meme-orange text-sm px-4 py-2">
+        ⚠ Switch to Base
       </button>
     );
   }
@@ -26,7 +23,8 @@ export function WalletButton() {
     return (
       <button
         onClick={() => disconnect()}
-        className="px-4 py-2 rounded-bubble border-2 border-surface-light text-sm font-mono font-semibold hover:border-brand transition-colors"
+        className="font-fredoka text-sm px-4 py-2 rounded-full border-2 border-meme-yellow text-meme-yellow hover:bg-meme-yellow hover:text-black transition-all"
+        style={{ fontWeight: 700 }}
       >
         {address.slice(0, 6)}…{address.slice(-4)}
       </button>
@@ -36,12 +34,8 @@ export function WalletButton() {
   const metamask = connectors.find((c) => c.id === "metaMask") ?? connectors[0];
 
   return (
-    <button
-      onClick={() => connect({ connector: metamask })}
-      disabled={isPending}
-      className="btn-bubble text-sm px-5 py-2"
-    >
-      {isPending ? "Connecting…" : "Connect Wallet"}
+    <button onClick={() => connect({ connector: metamask })} disabled={isPending} className="btn-meme-yellow text-sm px-5 py-2">
+      {isPending ? "Connecting…" : "🦊 Connect Wallet"}
     </button>
   );
 }

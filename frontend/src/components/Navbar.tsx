@@ -1,25 +1,37 @@
 "use client";
 
+import Image from "next/image";
 import { WalletButton } from "./WalletButton";
 
 export function Navbar() {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-surface-border bg-surface/95 backdrop-blur-md">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b-4 border-meme-yellow"
+         style={{ background: "rgba(7,27,62,0.97)", backdropFilter: "blur(12px)" }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-full bg-brand flex items-center justify-center font-black text-white text-base shadow-glow">
-            🌊
+          <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-meme-yellow"
+               style={{ boxShadow: "2px 2px 0 #000" }}>
+            <Image src="/logo.png" alt="Flozy" fill style={{ objectFit: "cover" }} />
           </div>
-          <span className="font-black text-xl gradient-text tracking-tight">FLOZY</span>
+          <span className="font-bangers text-2xl txt-shadow-sm"
+                style={{ color: "#FFD43B", letterSpacing: "3px" }}>
+            FLOZY
+          </span>
         </div>
 
         {/* Links */}
-        <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-gray-400">
-          <a href="#presale"  className="hover:text-white transition-colors">Buy FLZY</a>
-          <a href="#airdrop"  className="hover:text-accent-yellow transition-colors">Airdrop</a>
+        <div className="hidden md:flex items-center gap-5">
+          <a href="#presale"
+             className="font-fredoka text-white hover:text-meme-yellow transition-colors text-sm font-semibold tracking-wide">
+            Buy $FLZY
+          </a>
+          <a href="#airdrop"
+             className="font-fredoka text-white hover:text-meme-yellow transition-colors text-sm font-semibold tracking-wide">
+            Airdrop
+          </a>
           <a href="https://x.com/flozymeme" target="_blank" rel="noopener noreferrer"
-             className="hover:text-accent-blue transition-colors flex items-center gap-1">
+             className="font-fredoka text-white hover:text-sky-base transition-colors text-sm font-semibold tracking-wide">
             𝕏 Twitter
           </a>
         </div>

@@ -10,13 +10,13 @@ export function StageTable({ currentStage }: StageTableProps) {
   );
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-surface-border">
+    <div className="rounded-2xl overflow-hidden border-2 border-card-border">
       <table className="w-full text-sm">
         <thead>
-          <tr className="bg-surface-light/50">
-            <th className="text-left px-3 py-2 text-gray-400 font-semibold">Stage</th>
-            <th className="text-right px-3 py-2 text-gray-400 font-semibold">Price (ETH)</th>
-            <th className="text-right px-3 py-2 text-gray-400 font-semibold">Instant</th>
+          <tr style={{ background: "rgba(27,90,156,0.3)" }}>
+            <th className="text-left px-3 py-2 font-fredoka text-gray-400">Stage</th>
+            <th className="text-right px-3 py-2 font-fredoka text-gray-400">ETH / Token</th>
+            <th className="text-right px-3 py-2 font-fredoka text-gray-400">Instant</th>
           </tr>
         </thead>
         <tbody>
@@ -25,30 +25,23 @@ export function StageTable({ currentStage }: StageTableProps) {
             const isActive = i === currentStage;
             const isPast = i < currentStage;
             return (
-              <tr
-                key={i}
-                className={`border-t border-surface-border ${
-                  isActive
-                    ? "bg-brand/10"
-                    : isPast
-                    ? "opacity-40"
-                    : ""
-                }`}
-              >
-                <td className="px-3 py-2.5 font-semibold flex items-center gap-2">
-                  {isActive && (
-                    <span className="w-2 h-2 rounded-full bg-brand animate-pulse-slow inline-block" />
-                  )}
-                  {!isActive && <span className="w-2 h-2 inline-block" />}
-                  <span className={isActive ? "text-brand-light" : ""}>{s.label}</span>
+              <tr key={i} className="border-t border-card-border"
+                  style={{ background: isActive ? "rgba(255,212,59,0.08)" : "transparent" }}>
+                <td className="px-3 py-2.5 flex items-center gap-2">
+                  {isActive
+                    ? <span className="w-2 h-2 rounded-full bg-meme-yellow animate-pulse inline-block" />
+                    : <span className="w-2 h-2 inline-block" />}
+                  <span className={`font-fredoka font-bold ${isActive ? "txt-yellow" : isPast ? "text-gray-600" : "text-gray-400"}`}>
+                    {s.label}
+                  </span>
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono">
-                  <span className={isActive ? "text-accent-yellow font-bold" : ""}>
+                <td className="px-3 py-2.5 text-right font-mono text-xs">
+                  <span className={isActive ? "font-bold txt-yellow" : isPast ? "text-gray-600" : "text-gray-400"}>
                     {s.priceEth}
                   </span>
                 </td>
                 <td className="px-3 py-2.5 text-right">
-                  <span className={`font-semibold ${isActive ? "text-accent-green" : "text-gray-400"}`}>
+                  <span className={`font-fredoka font-bold ${isActive ? "txt-green" : isPast ? "text-gray-600" : "text-gray-400"}`}>
                     {s.instantPct}%
                   </span>
                 </td>
