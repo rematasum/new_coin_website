@@ -1,33 +1,38 @@
+import Image from "next/image";
+
 export function Footer() {
   return (
-    <footer className="border-t border-surface-border py-10">
+    <footer style={{ borderTop: "4px solid #FFD43B", background: "#050F24" }} className="py-10">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          {/* Logo */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-lg shadow-glow">🌊</div>
-            <span className="font-black text-lg gradient-text">FLOZY</span>
+            <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-meme-yellow"
+                 style={{ boxShadow: "2px 2px 0 #000" }}>
+              <Image src="/logo.png" alt="Flozy" fill style={{ objectFit: "cover" }} />
+            </div>
+            <span className="font-bangers text-2xl txt-yellow" style={{ letterSpacing: "3px", textShadow: "2px 2px 0 #000" }}>
+              FLOZY
+            </span>
           </div>
 
-          <p className="text-sm text-gray-500 text-center">
-            Built on Base Network · ETH only · $FLZY
+          <p className="font-fredoka text-sm text-gray-400 text-center">
+            $FLZY · Built on Base Network · ETH only
           </p>
 
-          <div className="flex items-center gap-4 text-sm text-gray-500">
-            <a href="#presale" className="hover:text-white transition-colors">Buy FLZY</a>
-            <a href="#airdrop" className="hover:text-accent-yellow transition-colors">Airdrop</a>
-            <a
-              href="https://x.com/flozymeme"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-accent-blue transition-colors"
-            >
+          <div className="flex items-center gap-4">
+            <a href="#presale" className="font-fredoka text-sm text-gray-400 hover:txt-yellow transition-colors">Buy $FLZY</a>
+            <a href="#airdrop" className="font-fredoka text-sm text-gray-400 hover:txt-yellow transition-colors">Airdrop</a>
+            <a href="https://x.com/flozymeme" target="_blank" rel="noopener noreferrer"
+               className="btn-meme-blue text-sm px-4 py-2">
               𝕏 Twitter
             </a>
           </div>
         </div>
 
-        <div className="mt-6 pt-6 border-t border-surface-border text-center text-xs text-gray-600">
-          Presale participation involves risk. Cryptocurrency investments are volatile and unregulated in many jurisdictions. Never invest more than you can afford to lose.
+        <div className="mt-6 pt-6 text-center font-fredoka text-xs text-gray-600"
+             style={{ borderTop: "1px solid #1B5A9C" }}>
+          Crypto investments are volatile and unregulated. Never invest more than you can afford to lose.
         </div>
       </div>
     </footer>
