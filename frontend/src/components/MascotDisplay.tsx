@@ -7,21 +7,22 @@ export function MascotDisplay() {
   const [videoFailed, setVideoFailed] = useState(false);
 
   return (
-    <div className="mascot-float relative w-52 h-52 flex items-center justify-center">
+    // overflow-hidden + object-cover kırpar beyaz boşlukları
+    <div className="w-52 h-52 rounded-3xl overflow-hidden border-4 border-meme-yellow"
+         style={{ boxShadow: "6px 6px 0 #000" }}>
       {!videoFailed ? (
         <video
           src="/mascot.mp4"
           autoPlay loop muted playsInline
-          className="w-52 h-52 object-contain"
+          className="w-full h-full object-cover"
           onError={() => setVideoFailed(true)}
         />
       ) : (
         <Image
           src="/logo.png"
           alt="Flozy Mascot"
-          width={210} height={210}
-          className="object-contain"
-          style={{ filter: "drop-shadow(0 20px 40px rgba(79,185,232,0.5))" }}
+          width={208} height={208}
+          className="w-full h-full object-cover"
         />
       )}
     </div>
