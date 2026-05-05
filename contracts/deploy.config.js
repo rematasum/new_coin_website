@@ -1,33 +1,33 @@
 /**
- * Deployment configuration.
+ * Deployment configuration for Flozy (FLZY).
  * Edit this file before running the deploy script.
  * These values are written to the blockchain and CANNOT be changed after deploy.
  */
 
 export default {
   // ── Token ──────────────────────────────────────────────────────────────────
-  tokenName: "YourToken",     // TODO: set before deploy
-  tokenSymbol: "YTK",         // TODO: set before deploy
-  totalSupply: "1000000000",  // 1 billion — as a plain number string (no decimals)
+  tokenName: "Flozy",
+  tokenSymbol: "FLZY",
+  totalSupply: "1000000000", // 1 billion
 
   // ── Presale ────────────────────────────────────────────────────────────────
 
-  // Presale end date. Format: "YYYY-MM-DD" — the script converts to Unix timestamp (midnight UTC).
-  deadline: "2025-08-01",     // TODO: set before deploy
+  // Presale end date. Format: "YYYY-MM-DD" (midnight UTC).
+  deadline: "2025-08-01", // TODO: confirm before mainnet deploy
 
   // Referral bonus in basis points. 500 = 5%, 0 = disabled.
   referralBps: 500,
 
   // ── Stages ─────────────────────────────────────────────────────────────────
-  // Each stage needs:
-  //   priceEth      — price per 1 full token in ETH (e.g. "0.000001")
-  //   allocationM   — how many million tokens to sell in this stage (e.g. 75 = 75,000,000)
-  //
-  // Total of all allocationM values must equal totalSupply * 0.25 (25% presale rule).
-  // Default below: 75M + 100M + 75M = 250M = 25% of 1B ✓
+  // priceEth         — price per 1 full token in ETH
+  // allocationM      — millions of tokens in this stage (5 × 50M = 250M = 25% of 1B)
+  // instantUnlockBps — % unlocked immediately when presale ends (basis points: 2500 = 25%)
+  //                    Remaining % vests linearly over 24 months from presale end.
   stages: [
-    { priceEth: "0.000001",  allocationM: 75  },  // Stage 1 — cheapest
-    { priceEth: "0.0000015", allocationM: 100 },  // Stage 2
-    { priceEth: "0.000002",  allocationM: 75  },  // Stage 3
+    { priceEth: "0.000002",  allocationM: 50, instantUnlockBps: 2500 }, // Stage 1 — 25% instant
+    { priceEth: "0.0000022", allocationM: 50, instantUnlockBps: 2000 }, // Stage 2 — 20% instant
+    { priceEth: "0.0000025", allocationM: 50, instantUnlockBps: 1500 }, // Stage 3 — 15% instant
+    { priceEth: "0.000003",  allocationM: 50, instantUnlockBps: 1000 }, // Stage 4 — 10% instant
+    { priceEth: "0.000004",  allocationM: 50, instantUnlockBps:  500 }, // Stage 5 —  5% instant
   ],
 };

@@ -15,7 +15,7 @@ export function WalletButton() {
     return (
       <button
         onClick={() => switchChain({ chainId: targetChain.id })}
-        className="px-5 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 text-black font-semibold text-sm transition-colors"
+        className="px-4 py-2 rounded-bubble bg-accent-yellow text-surface font-black text-sm shadow-bubble transition-all hover:-translate-y-0.5"
       >
         Switch to Base
       </button>
@@ -26,7 +26,7 @@ export function WalletButton() {
     return (
       <button
         onClick={() => disconnect()}
-        className="px-5 py-2 rounded-lg bg-surface-card border border-surface-border hover:border-brand text-sm font-mono transition-colors"
+        className="px-4 py-2 rounded-bubble border-2 border-surface-light text-sm font-mono font-semibold hover:border-brand transition-colors"
       >
         {address.slice(0, 6)}…{address.slice(-4)}
       </button>
@@ -39,7 +39,7 @@ export function WalletButton() {
     <button
       onClick={() => connect({ connector: metamask })}
       disabled={isPending}
-      className="px-5 py-2 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold text-sm transition-colors disabled:opacity-50"
+      className="btn-bubble text-sm px-5 py-2"
     >
       {isPending ? "Connecting…" : "Connect Wallet"}
     </button>

@@ -4,18 +4,24 @@ import { WalletButton } from "./WalletButton";
 
 export function Navbar() {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-surface-border bg-surface/90 backdrop-blur-md">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-surface-border bg-surface/95 backdrop-blur-md">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center font-bold text-sm">T</div>
-          <span className="font-bold text-lg gradient-text">TOKEN</span>
+          <div className="w-9 h-9 rounded-full bg-brand flex items-center justify-center font-black text-white text-base shadow-glow">
+            🌊
+          </div>
+          <span className="font-black text-xl gradient-text tracking-tight">FLOZY</span>
         </div>
 
-        <div className="hidden md:flex items-center gap-8 text-sm text-gray-400">
-          <a href="#presale" className="hover:text-white transition-colors">Presale</a>
-          <a href="#tokenomics" className="hover:text-white transition-colors">Tokenomics</a>
-          <a href="#roadmap" className="hover:text-white transition-colors">Roadmap</a>
-          <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
+        {/* Links */}
+        <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-gray-400">
+          <a href="#presale"  className="hover:text-white transition-colors">Buy FLZY</a>
+          <a href="#airdrop"  className="hover:text-accent-yellow transition-colors">Airdrop</a>
+          <a href="https://x.com/flozymeme" target="_blank" rel="noopener noreferrer"
+             className="hover:text-accent-blue transition-colors flex items-center gap-1">
+            𝕏 Twitter
+          </a>
         </div>
 
         <WalletButton />

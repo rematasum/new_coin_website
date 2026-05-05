@@ -16,6 +16,7 @@ function parseConfig() {
 
   const stagePrices = cfg.stages.map((s) => hre.ethers.parseEther(s.priceEth));
   const stageAllocations = cfg.stages.map((s) => hre.ethers.parseEther(String(s.allocationM * 1_000_000)));
+  const instantUnlockBps = cfg.stages.map((s) => BigInt(s.instantUnlockBps));
 
   const totalPresale = stageAllocations.reduce((a, b) => a + b, 0n);
   const expectedPresale = totalSupply / 4n;
@@ -25,11 +26,11 @@ function parseConfig() {
     );
   }
 
-  return { totalSupply, deadlineTs, stagePrices, stageAllocations, totalPresale };
+  return { totalSupply, deadlineTs, stagePrices, stageAllocations, instantUnlockBps, totalPresale };
 }
 
 async function main() {
-  const { totalSupply, deadlineTs, stagePrices, stageAllocations, totalPresale } = parseConfig();
+  const { totalSupply, deadlineTs, stagePrices, stageAllocations, instantUnlockBps, totalPresale } = parseConfig();
   const [deployer] = await hre.ethers.getSigners();
 
   console.log("Network:  ", hre.network.name);
@@ -60,6 +61,7 @@ async function main() {
     BigInt(cfg.referralBps),
     stagePrices,
     stageAllocations,
+    instantUnlockBps,
     deployer.address
   );
   await presale.waitForDeployment();
