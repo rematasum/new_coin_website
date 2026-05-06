@@ -10,7 +10,7 @@ import dynamic from "next/dynamic";
 
 const WalletButton = dynamic(
   () => import("./WalletButton").then((m) => ({ default: m.WalletButton })),
-  { ssr: false, loading: () => <div className="w-full h-12" /> }
+  { ssr: false }
 );
 import { StageTable } from "./StageTable";
 import { VestingModal } from "./VestingModal";

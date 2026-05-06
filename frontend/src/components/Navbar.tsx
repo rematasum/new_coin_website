@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 
 const WalletButton = dynamic(
   () => import("./WalletButton").then((m) => ({ default: m.WalletButton })),
-  { ssr: false, loading: () => <div className="w-[120px] h-9" /> }
+  { ssr: false }
 );
 
 const NAV_LINKS = [
