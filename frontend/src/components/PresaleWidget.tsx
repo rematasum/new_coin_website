@@ -6,7 +6,12 @@ import { parseEther, formatEther, zeroAddress } from "viem";
 import { PRESALE_ADDRESS, PRESALE_ABI } from "@/config/contracts";
 import { targetChain } from "@/config/wagmi";
 import { formatTokenAmount, formatCountdown } from "@/lib/format";
-import { WalletButton } from "./WalletButton";
+import dynamic from "next/dynamic";
+
+const WalletButton = dynamic(
+  () => import("./WalletButton").then((m) => ({ default: m.WalletButton })),
+  { ssr: false, loading: () => <div className="w-full h-12" /> }
+);
 import { StageTable } from "./StageTable";
 import { VestingModal } from "./VestingModal";
 

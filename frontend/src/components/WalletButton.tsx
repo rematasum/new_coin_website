@@ -1,26 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import { targetChain } from "@/config/wagmi";
 
 export function WalletButton() {
-  const [mounted, setMounted] = useState(false);
   const { address, isConnected, chainId } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
-
-  useEffect(() => { setMounted(true); }, []);
-
-  // Always render the same placeholder on server + first client paint to avoid hydration mismatch
-  if (!mounted) {
-    return (
-      <button disabled className="btn-meme-yellow text-sm px-5 py-2 opacity-0">
-        Connect
-      </button>
-    );
-  }
 
   const isWrongChain = isConnected && chainId !== targetChain.id;
 

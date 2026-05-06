@@ -2,8 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { WalletButton } from "./WalletButton";
+
+const WalletButton = dynamic(
+  () => import("./WalletButton").then((m) => ({ default: m.WalletButton })),
+  { ssr: false, loading: () => <div className="w-[120px] h-9" /> }
+);
 
 const NAV_LINKS = [
   { href: "/",            label: "Home" },
