@@ -1,9 +1,10 @@
 import "@nomicfoundation/hardhat-toolbox";
 import { config as loadEnv } from "dotenv";
-loadEnv();
+loadEnv({ override: true });
 
-const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x" + "0".repeat(64);
-const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY || "";
+const rawKey = (process.env.PRIVATE_KEY || "").trim();
+const PRIVATE_KEY = rawKey.startsWith("0x") ? rawKey : rawKey ? "0x" + rawKey : "0x" + "0".repeat(64);
+const BASESCAN_API_KEY = (process.env.BASESCAN_API_KEY || "").trim();
 
 /** @type import('hardhat/config').HardhatUserConfig */
 export default {
