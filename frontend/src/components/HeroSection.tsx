@@ -3,7 +3,7 @@ import { MascotDisplay } from "./MascotDisplay";
 
 export function HeroSection() {
   return (
-    <section className="sky-bg min-h-screen flex items-center pb-20 overflow-hidden relative" style={{ paddingTop: "110px" }} id="presale">
+    <section className="sky-bg min-h-screen flex items-center pb-20 overflow-hidden relative" style={{ paddingTop: "140px" }} id="presale">
 
       {/* Animated clouds */}
       <div className="pointer-events-none" aria-hidden>

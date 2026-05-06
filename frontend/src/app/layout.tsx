@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
+import { Navbar } from "@/components/Navbar";
+import { MarqueeText } from "@/components/MarqueeText";
 
 export const metadata: Metadata = {
   title: "FLOZY ($FLZY) — Biggest Meme on Base",
@@ -21,7 +23,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
       </head>
       <body className="bg-sky-dark text-white antialiased">
-        <Providers>{children}</Providers>
+        <Providers>
+          <MarqueeText />
+          <Navbar />
+          {children}
+        </Providers>
       </body>
     </html>
   );

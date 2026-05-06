@@ -234,9 +234,14 @@ export function PresaleWidget() {
           </div>
         )}
 
+        {/* Burn notice */}
+        <p className="mt-3 text-center font-fredoka text-xs text-orange-400" style={{ letterSpacing: "0.3px" }}>
+          🔥 Satılmayan token&apos;lar yakılacaktır &nbsp;·&nbsp; Unsold tokens will be burned
+        </p>
+
         {/* Vesting link */}
         <button onClick={() => setShowVesting(true)}
-          className="w-full mt-3 font-fredoka text-xs text-gray-500 hover:text-sky-base transition-colors underline underline-offset-2">
+          className="w-full mt-2 font-fredoka text-xs text-gray-500 hover:text-sky-base transition-colors underline underline-offset-2">
           📋 View your vesting schedule
         </button>
       </div>
