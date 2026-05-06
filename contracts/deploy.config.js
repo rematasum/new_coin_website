@@ -13,7 +13,7 @@ export default {
   // ── Presale ────────────────────────────────────────────────────────────────
 
   // Presale end date. Format: "YYYY-MM-DD" (midnight UTC).
-  deadline: "2025-08-01", // TODO: confirm before mainnet deploy
+  deadline: "2026-08-01", // TODO: confirm exact date before mainnet deploy
 
   // Referral bonus in basis points. 500 = 5%, 0 = disabled.
   referralBps: 500,
