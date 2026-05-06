@@ -228,6 +228,22 @@ body {
 }
 .meme-input::placeholder { color: rgba(255,255,255,0.3); }
 
+/* ── Marquee ──────────────────────────────────────────────────────── */
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ── Cloud drift ──────────────────────────────────────────────────── */
+@keyframes cloud1 {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(120vw);  }
+}
+@keyframes cloud2 {
+  0%   { transform: translateX(120vw);  }
+  100% { transform: translateX(-120%); }
+}
+
 /* ── Gradient text ────────────────────────────────────────────────── */
 .txt-yellow   { color: #FFD43B; }
 .txt-blue     { color: #4FB9E8; }
