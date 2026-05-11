@@ -30,16 +30,15 @@ export default {
 
   // ── Team & Sponsor Vesting (250M total) ────────────────────────────────────
   // Replace placeholder addresses with real wallet addresses before mainnet deploy.
-  // instantUnlockBps: 0 = fully vested over 24 months, no instant unlock.
-  // Vesting starts on the first 15th of the month after owner calls startVesting().
+  // instantUnlockBps: 2500 = 25% instant unlock, remaining 75% monthly over 24 months.
   teamVesting: {
     beneficiaries: [
-      { name: "Team & Dev", address: "0x0000000000000000000000000000000000000001", amountM: 100, instantUnlockBps: 0 },
-      { name: "Sponsor 1",  address: "0x0000000000000000000000000000000000000002", amountM: 30,  instantUnlockBps: 0 },
-      { name: "Sponsor 2",  address: "0x0000000000000000000000000000000000000003", amountM: 30,  instantUnlockBps: 0 },
-      { name: "Sponsor 3",  address: "0x0000000000000000000000000000000000000004", amountM: 30,  instantUnlockBps: 0 },
-      { name: "Sponsor 4",  address: "0x0000000000000000000000000000000000000005", amountM: 30,  instantUnlockBps: 0 },
-      { name: "Sponsor 5",  address: "0x0000000000000000000000000000000000000006", amountM: 30,  instantUnlockBps: 0 },
+      { name: "Team & Dev", address: "0x0000000000000000000000000000000000000001", amountM: 100, instantUnlockBps: 2500 },
+      { name: "Sponsor 1",  address: "0x0000000000000000000000000000000000000002", amountM: 30,  instantUnlockBps: 2500 },
+      { name: "Sponsor 2",  address: "0x0000000000000000000000000000000000000003", amountM: 30,  instantUnlockBps: 2500 },
+      { name: "Sponsor 3",  address: "0x0000000000000000000000000000000000000004", amountM: 30,  instantUnlockBps: 2500 },
+      { name: "Sponsor 4",  address: "0x0000000000000000000000000000000000000005", amountM: 30,  instantUnlockBps: 2500 },
+      { name: "Sponsor 5",  address: "0x0000000000000000000000000000000000000006", amountM: 30,  instantUnlockBps: 2500 },
     ],
   },
 };

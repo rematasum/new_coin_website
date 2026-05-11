@@ -1,16 +1,13 @@
 export function Tokenomics() {
   const slices = [
-    { label: "Presale",               pct: 25, amount: "250M", color: "#FFD43B", icon: "🔥" },
-    { label: "Liquidity Pool",        pct: 20, amount: "200M", color: "#4FB9E8", icon: "💧" },
-    { label: "Community & Marketing", pct: 20, amount: "200M", color: "#A855F7", icon: "📣" },
-    { label: "Sponsors",              pct: 15, amount: "150M", color: "#FF6B00", icon: "🤝" },
-    { label: "Team & Dev",            pct: 10, amount: "100M", color: "#00E676", icon: "👨‍💻" },
-    { label: "Reserve",               pct: 10, amount: "100M", color: "#FF2D55", icon: "🔒" },
+    { label: "Presale",              pct: 25, amount: "250M", color: "#FFD43B", icon: "🔥" },
+    { label: "Airdrop",              pct: 25, amount: "250M", color: "#A855F7", icon: "🎁" },
+    { label: "Liquidity Pool",       pct: 25, amount: "250M", color: "#4FB9E8", icon: "💧" },
+    { label: "Team, Dev & Sponsors", pct: 25, amount: "250M", color: "#00E676", icon: "👨‍💻" },
   ];
 
   return (
     <section id="tokenomics" className="sky-bg py-20 relative overflow-hidden">
-      {/* Glow blobs */}
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="absolute top-1/4 left-1/3 w-80 h-80 rounded-full opacity-10"
              style={{ background: "#FFD43B", filter: "blur(80px)" }} />
@@ -29,14 +26,13 @@ export function Tokenomics() {
           <p className="font-fredoka text-gray-300 text-lg">Total Supply — Fixed Forever 🔒</p>
         </div>
 
-        {/* Distribution grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-12">
+        {/* Distribution grid — 4 equal slices */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
           {slices.map((s) => (
-            <div key={s.label} className="meme-card p-5 text-center relative overflow-hidden group">
-              {/* Color bar at top */}
+            <div key={s.label} className="meme-card p-5 text-center relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl" style={{ background: s.color }} />
               <span className="text-3xl">{s.icon}</span>
-              <p className="font-bangers text-3xl mt-2" style={{ color: s.color, letterSpacing: "1px" }}>
+              <p className="font-bangers text-4xl mt-2" style={{ color: s.color, letterSpacing: "1px" }}>
                 {s.pct}%
               </p>
               <p className="font-fredoka font-bold text-white text-sm mt-0.5">{s.amount}</p>
@@ -61,14 +57,14 @@ export function Tokenomics() {
               </thead>
               <tbody>
                 {[
-                  { name: "Presale — Stage 1", instant: "25%", vesting: "75% over 24 months" },
-                  { name: "Presale — Stage 2", instant: "20%", vesting: "80% over 24 months" },
-                  { name: "Presale — Stage 3", instant: "15%", vesting: "85% over 24 months" },
-                  { name: "Presale — Stage 4", instant: "10%", vesting: "90% over 24 months" },
-                  { name: "Presale — Stage 5", instant: "5%",  vesting: "95% over 24 months" },
-                  { name: "Team & Dev",         instant: "0%",  vesting: "100% over 24 months" },
-                  { name: "Sponsors",           instant: "0%",  vesting: "100% over 24 months" },
-                  { name: "Liquidity Pool",     instant: "100%",vesting: "No vesting" },
+                  { name: "Presale — Stage 1",       instant: "25%",  vesting: "75% over 24 months" },
+                  { name: "Presale — Stage 2",        instant: "20%",  vesting: "80% over 24 months" },
+                  { name: "Presale — Stage 3",        instant: "15%",  vesting: "85% over 24 months" },
+                  { name: "Presale — Stage 4",        instant: "10%",  vesting: "90% over 24 months" },
+                  { name: "Presale — Stage 5",        instant: "5%",   vesting: "95% over 24 months" },
+                  { name: "Team, Dev & Sponsors",     instant: "25%",  vesting: "75% over 24 months" },
+                  { name: "Liquidity Pool",           instant: "100%", vesting: "No vesting" },
+                  { name: "Airdrop",                  instant: "100%", vesting: "No vesting" },
                 ].map((row, i) => (
                   <tr key={i} className="border-t border-white/5">
                     <td className="px-4 py-3 font-fredoka font-semibold text-white">{row.name}</td>
