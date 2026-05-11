@@ -1,5 +1,6 @@
 export const TOKEN_ADDRESS = (process.env.NEXT_PUBLIC_TOKEN_ADDRESS ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
 export const PRESALE_ADDRESS = (process.env.NEXT_PUBLIC_PRESALE_ADDRESS ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
+export const TEAM_VESTING_ADDRESS = (process.env.NEXT_PUBLIC_TEAM_VESTING_ADDRESS ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
 export const STAGE_COUNT = 5;
 
@@ -25,8 +26,8 @@ export const PRESALE_ABI = [
   { name: "presaleActive",   type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "bool" }] },
   { name: "presaleEnded",    type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "bool" }] },
   { name: "presaleEndTime",  type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { name: "vestingStart",    type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   { name: "isEnded",         type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "bool" }] },
-  { name: "referralBonusBps",type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   { name: "estimateTokens",  type: "function", stateMutability: "view", inputs: [{ name: "ethAmount", type: "uint256" }], outputs: [{ type: "uint256" }] },
   // Vesting
   { name: "contributions",   type: "function", stateMutability: "view", inputs: [{ name: "user", type: "address" }], outputs: [{ type: "uint256" }] },
@@ -45,7 +46,7 @@ export const PRESALE_ABI = [
     outputs: [{ name: "totalAmount", type: "uint256" }, { name: "claimed", type: "uint256" }],
   },
   // ── Write ─────────────────────────────────────────────────────────
-  { name: "buy",   type: "function", stateMutability: "payable",    inputs: [{ name: "referrer", type: "address" }], outputs: [] },
+  { name: "buy",   type: "function", stateMutability: "payable",    inputs: [], outputs: [] },
   { name: "claim", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] },
 ] as const;
 

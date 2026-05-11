@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther, formatEther, zeroAddress } from "viem";
+import { formatMonthlyVestingDates } from "@/lib/format";
 import { PRESALE_ADDRESS, PRESALE_ABI } from "@/config/contracts";
 import { targetChain } from "@/config/wagmi";
 import { formatTokenAmount, formatCountdown } from "@/lib/format";
@@ -15,7 +16,6 @@ const presaleContract = { address: PRESALE_ADDRESS, abi: PRESALE_ABI } as const;
 export function PresaleWidget() {
   const { address, isConnected, chainId } = useAccount();
   const [ethInput, setEthInput] = useState("");
-  const [referrer, setReferrer] = useState<`0x${string}`>(zeroAddress);
   const [countdown, setCountdown] = useState("");
   const [showVesting, setShowVesting] = useState(false);
 
@@ -32,7 +32,7 @@ export function PresaleWidget() {
       { ...presaleContract, functionName: "isEnded" },
       { ...presaleContract, functionName: "totalEthRaised" },
       { ...presaleContract, functionName: "stageCount" },
-      { ...presaleContract, functionName: "referralBonusBps" },
+      { ...presaleContract, functionName: "vestingStart" },
       { ...presaleContract, functionName: "presaleEndTime" },
     ],
     query: { refetchInterval: 10_000 },
@@ -47,6 +47,7 @@ export function PresaleWidget() {
   const isEnded        = data?.[6]?.result as boolean | undefined;
   const totalEthRaised = data?.[7]?.result as bigint | undefined;
   const stageCount     = data?.[8]?.result as bigint | undefined;
+  const vestingStart   = data?.[9]?.result as bigint | undefined;
   const presaleEndTime = data?.[10]?.result as bigint | undefined;
 
   const { data: claimable, refetch: refetchClaimable } = useReadContract({
@@ -74,11 +75,6 @@ export function PresaleWidget() {
     if (isBuySuccess || isClaimSuccess) { refetch(); refetchClaimable(); setEthInput(""); }
   }, [isBuySuccess, isClaimSuccess]);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const ref = params.get("ref");
-    if (ref?.startsWith("0x") && ref.length === 42) setReferrer(ref as `0x${string}`);
-  }, []);
 
   useEffect(() => {
     if (!deadline) return;
@@ -194,7 +190,7 @@ export function PresaleWidget() {
               </div>
             ) : (
               <button
-                onClick={() => { if (!canBuy) return; writeBuy({ ...presaleContract, functionName: "buy", args: [referrer], value: ethInputWei }); }}
+                onClick={() => { if (!canBuy) return; writeBuy({ ...presaleContract, functionName: "buy", args: [], value: ethInputWei }); }}
                 disabled={!canBuy || isBuying || isBuyConfirming}
                 className="btn-meme-yellow w-full py-3.5 text-xl"
               >
@@ -241,7 +237,7 @@ export function PresaleWidget() {
         </button>
       </div>
 
-      {showVesting && <VestingModal onClose={() => setShowVesting(false)} presaleEndTime={presaleEndTime ?? 0n} />}
+      {showVesting && <VestingModal onClose={() => setShowVesting(false)} vestingStart={vestingStart ?? 0n} />}
     </>
   );
 }

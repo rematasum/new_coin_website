@@ -30,3 +30,17 @@ export function calcTokensFromEth(ethWei: bigint, priceWei: bigint): bigint {
   if (priceWei === 0n) return 0n;
   return (ethWei * parseEther("1")) / priceWei;
 }
+
+/**
+ * Returns the next N unlock dates starting from vestingStart (Unix seconds),
+ * each 30 days apart, formatted as "15 Jun 2025".
+ */
+export function formatMonthlyVestingDates(vestingStartSec: bigint, count = 3): string[] {
+  if (!vestingStartSec || vestingStartSec === 0n) return [];
+  const results: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const ts = Number(vestingStartSec) + i * 30 * 86400;
+    results.push(new Date(ts * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }));
+  }
+  return results;
+}

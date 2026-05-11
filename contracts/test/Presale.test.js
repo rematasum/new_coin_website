@@ -2,10 +2,9 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 
-const TOTAL_SUPPLY = hre.ethers.parseEther("1000000000"); // 1B
+const TOTAL_SUPPLY  = hre.ethers.parseEther("1000000000"); // 1B
 const PRESALE_AMOUNT = TOTAL_SUPPLY / 4n; // 250M
 
-// 5 stages × 50M — mirrors deploy.config.js
 const STAGE_PRICES = [
   hre.ethers.parseEther("0.000002"),
   hre.ethers.parseEther("0.0000022"),
@@ -20,13 +19,13 @@ const STAGE_ALLOCS = [
   hre.ethers.parseEther("50000000"),
   hre.ethers.parseEther("50000000"),
 ];
-const INSTANT_UNLOCK_BPS = [2500n, 2000n, 1500n, 1000n, 500n]; // 25%, 20%, 15%, 10%, 5%
-const REFERRAL_BPS = 500n; // 5%
+const INSTANT_UNLOCK_BPS = [2500n, 2000n, 1500n, 1000n, 500n];
 
-const VESTING_DURATION = 730n * 24n * 3600n; // 730 days in seconds
+const MONTH = 30n * 24n * 3600n; // 30 days in seconds
+const VESTING_MONTHS = 24n;
 
 async function deploy() {
-  const [owner, buyer1, buyer2, referrer] = await hre.ethers.getSigners();
+  const [owner, buyer1, buyer2] = await hre.ethers.getSigners();
   const deadline = BigInt(await time.latest()) + 86400n * 30n;
 
   const Token = await hre.ethers.getContractFactory("Token");
@@ -36,7 +35,6 @@ async function deploy() {
   const presale = await Presale.deploy(
     await token.getAddress(),
     deadline,
-    REFERRAL_BPS,
     STAGE_PRICES,
     STAGE_ALLOCS,
     INSTANT_UNLOCK_BPS,
@@ -45,8 +43,19 @@ async function deploy() {
 
   await token.transfer(await presale.getAddress(), PRESALE_AMOUNT);
 
-  return { token, presale, owner, buyer1, buyer2, referrer, deadline };
+  return { token, presale, owner, buyer1, buyer2, deadline };
 }
+
+// Buy then owner-end the presale; attaches vestingStart to context
+async function buyAndEnd(ethIn = hre.ethers.parseEther("1")) {
+  const ctx = await deploy();
+  await ctx.presale.connect(ctx.buyer1).buy({ value: ethIn });
+  await ctx.presale.connect(ctx.owner).endPresale();
+  ctx.vestingStart = await ctx.presale.vestingStart();
+  return ctx;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 describe("Token", () => {
   it("mints total supply to owner", async () => {
@@ -72,7 +81,7 @@ describe("Presale", () => {
       const Presale = await hre.ethers.getContractFactory("Presale");
       const pastDeadline = BigInt(await time.latest()) - 1n;
       await expect(
-        Presale.deploy(await token.getAddress(), pastDeadline, 0, STAGE_PRICES, STAGE_ALLOCS, INSTANT_UNLOCK_BPS, owner.address)
+        Presale.deploy(await token.getAddress(), pastDeadline, STAGE_PRICES, STAGE_ALLOCS, INSTANT_UNLOCK_BPS, owner.address)
       ).to.be.revertedWith("Deadline in past");
     });
   });
@@ -81,7 +90,7 @@ describe("Presale", () => {
     it("credits correct token amount for ETH sent", async () => {
       const { presale, buyer1 } = await deploy();
       const ethIn = hre.ethers.parseEther("0.1");
-      await presale.connect(buyer1).buy(hre.ethers.ZeroAddress, { value: ethIn });
+      await presale.connect(buyer1).buy({ value: ethIn });
 
       const expectedTokens = (ethIn * hre.ethers.parseEther("1")) / STAGE_PRICES[0];
       expect(await presale.contributions(buyer1.address)).to.equal(expectedTokens);
@@ -92,73 +101,38 @@ describe("Presale", () => {
       const { presale, buyer1 } = await deploy();
       const ethIn = hre.ethers.parseEther("1.5");
       const before = await hre.ethers.provider.getBalance(buyer1.address);
-      const tx = await presale.connect(buyer1).buy(hre.ethers.ZeroAddress, { value: ethIn });
+      const tx = await presale.connect(buyer1).buy({ value: ethIn });
       const receipt = await tx.wait();
       const gasCost = receipt.gasUsed * receipt.gasPrice;
       const after = await hre.ethers.provider.getBalance(buyer1.address);
       expect(before - after - gasCost).to.be.lte(ethIn);
     });
 
-    it("advances stage when allocation sells out", async () => {
+    it("spans multiple stages when ETH is large enough", async () => {
       const { presale, buyer1 } = await deploy();
-      const ethNeeded = (STAGE_ALLOCS[0] * STAGE_PRICES[0]) / hre.ethers.parseEther("1");
-      await presale.connect(buyer1).buy(hre.ethers.ZeroAddress, { value: ethNeeded });
-      expect(await presale.currentStage()).to.equal(1);
-    });
+      const ethForStage0 = (STAGE_ALLOCS[0] * STAGE_PRICES[0]) / hre.ethers.parseEther("1");
+      await presale.connect(buyer1).buy({ value: ethForStage0 + hre.ethers.parseEther("1") });
 
-    it("tracks tokens per stage when buy spans two stages", async () => {
-      const { presale, buyer1, buyer2 } = await deploy();
-
-      // Deplete stage 0 down to 10 tokens remaining
-      const stage0Remaining = STAGE_ALLOCS[0] - hre.ethers.parseEther("10");
-      const depleteCost = (stage0Remaining * STAGE_PRICES[0]) / hre.ethers.parseEther("1");
-      await presale.connect(buyer2).buy(hre.ethers.ZeroAddress, { value: depleteCost });
-
-      // Buy 20 tokens worth — should span stage 0 and stage 1
-      const twentyCost = (hre.ethers.parseEther("20") * STAGE_PRICES[0]) / hre.ethers.parseEther("1");
-      await presale.connect(buyer1).buy(hre.ethers.ZeroAddress, { value: twentyCost });
-
-      expect(await presale.currentStage()).to.equal(1);
       const stage0Record = await presale.vestingRecords(buyer1.address, 0);
       const stage1Record = await presale.vestingRecords(buyer1.address, 1);
       expect(stage0Record.totalAmount).to.be.gt(0);
       expect(stage1Record.totalAmount).to.be.gt(0);
     });
 
-    it("credits referral bonus to referrer's stage 0 vesting record", async () => {
-      const { presale, buyer1, referrer } = await deploy();
-      const ethIn = hre.ethers.parseEther("1");
-      await presale.connect(buyer1).buy(referrer.address, { value: ethIn });
-
-      const boughtTokens = (await presale.vestingRecords(buyer1.address, 0)).totalAmount;
-      const expectedBonus = (boughtTokens * REFERRAL_BPS) / 10000n;
-      const referrerRecord = await presale.vestingRecords(referrer.address, 0);
-      expect(referrerRecord.totalAmount).to.equal(expectedBonus);
-    });
-
-    it("rejects self-referral", async () => {
-      const { presale, buyer1 } = await deploy();
-      await expect(
-        presale.connect(buyer1).buy(buyer1.address, { value: hre.ethers.parseEther("1") })
-      ).to.be.revertedWith("Self-referral");
-    });
-
-    it("ends presale when all stages sell out and records end time", async () => {
+    it("ends presale when all stages sell out", async () => {
       const { presale, buyer1 } = await deploy();
       const totalEth = STAGE_ALLOCS.reduce((acc, alloc, i) => {
         return acc + (alloc * STAGE_PRICES[i]) / hre.ethers.parseEther("1");
       }, 0n);
-      const before = BigInt(await time.latest());
-      await presale.connect(buyer1).buy(hre.ethers.ZeroAddress, { value: totalEth });
+      await presale.connect(buyer1).buy({ value: totalEth });
       expect(await presale.presaleEnded()).to.be.true;
-      expect(await presale.presaleEndTime()).to.be.gte(before);
     });
 
     it("reverts after deadline", async () => {
       const { presale, buyer1, deadline } = await deploy();
       await time.increaseTo(deadline + 1n);
       await expect(
-        presale.connect(buyer1).buy(hre.ethers.ZeroAddress, { value: hre.ethers.parseEther("1") })
+        presale.connect(buyer1).buy({ value: hre.ethers.parseEther("1") })
       ).to.be.revertedWith("Deadline passed");
     });
 
@@ -166,22 +140,33 @@ describe("Presale", () => {
       const { presale, owner, buyer1 } = await deploy();
       await presale.connect(owner).toggleActive(false);
       await expect(
-        presale.connect(buyer1).buy(hre.ethers.ZeroAddress, { value: hre.ethers.parseEther("1") })
+        presale.connect(buyer1).buy({ value: hre.ethers.parseEther("1") })
       ).to.be.revertedWith("Presale not active");
     });
   });
 
-  describe("vesting & claim", () => {
-    async function buyAndEnd(ethIn = hre.ethers.parseEther("1")) {
-      const ctx = await deploy();
-      await ctx.presale.connect(ctx.buyer1).buy(hre.ethers.ZeroAddress, { value: ethIn });
-      await ctx.presale.connect(ctx.owner).endPresale();
-      return ctx;
-    }
+  describe("vestingStart (_nextFifteenth)", () => {
+    it("is set when presale ends", async () => {
+      const { vestingStart } = await buyAndEnd();
+      expect(vestingStart).to.be.gt(0n);
+    });
 
+    it("is midnight UTC (divisible by 86400)", async () => {
+      const { vestingStart } = await buyAndEnd();
+      expect(vestingStart % 86400n).to.equal(0n);
+    });
+
+    it("is on or after presaleEndTime", async () => {
+      const ctx = await buyAndEnd();
+      const endTime = await ctx.presale.presaleEndTime();
+      expect(ctx.vestingStart).to.be.gte(endTime);
+    });
+  });
+
+  describe("vesting & claim (monthly tranches)", () => {
     it("reverts if presale still active", async () => {
       const { presale, buyer1 } = await deploy();
-      await presale.connect(buyer1).buy(hre.ethers.ZeroAddress, { value: hre.ethers.parseEther("1") });
+      await presale.connect(buyer1).buy({ value: hre.ethers.parseEther("1") });
       await expect(presale.connect(buyer1).claim()).to.be.revertedWith("Presale not ended yet");
     });
 
@@ -191,103 +176,112 @@ describe("Presale", () => {
       await expect(presale.connect(buyer1).claim()).to.be.revertedWith("Nothing to claim");
     });
 
-    it("instant unlocks correct % at presale end (stage 0 = 25%)", async () => {
-      const { presale, token, buyer1 } = await buyAndEnd();
-      const totalTokens = (await presale.vestingRecords(buyer1.address, 0)).totalAmount;
+    it("instant unlock (25%) available right after presale ends, before vestingStart", async () => {
+      const { presale, token, buyer1, vestingStart } = await buyAndEnd();
+      const totalTokens    = (await presale.vestingRecords(buyer1.address, 0)).totalAmount;
       const expectedInstant = (totalTokens * 2500n) / 10000n;
+
+      expect(BigInt(await time.latest())).to.be.lt(vestingStart);
+      expect(await presale.getClaimableNow(buyer1.address)).to.equal(expectedInstant);
 
       await presale.connect(buyer1).claim();
-      // Allow ~0.1 token tolerance for 1-2 block seconds of vesting accrued between endPresale and claim
-      expect(await token.balanceOf(buyer1.address)).to.be.closeTo(expectedInstant, hre.ethers.parseEther("0.1"));
+      expect(await token.balanceOf(buyer1.address)).to.equal(expectedInstant);
     });
 
-    it("getClaimableNow returns instant amount right after presale ends", async () => {
-      const { presale, buyer1 } = await buyAndEnd();
-      const totalTokens = (await presale.vestingRecords(buyer1.address, 0)).totalAmount;
-      const expectedInstant = (totalTokens * 2500n) / 10000n;
-      expect(await presale.getClaimableNow(buyer1.address)).to.equal(expectedInstant);
-    });
-
-    it("50% vesting period unlocks correct additional amount", async () => {
-      const { presale, token, buyer1 } = await buyAndEnd();
-      const totalTokens = (await presale.vestingRecords(buyer1.address, 0)).totalAmount;
+    it("after 1 month: instant + 1/24 of vesting amount unlocked", async () => {
+      const { presale, token, buyer1, vestingStart } = await buyAndEnd();
+      const totalTokens   = (await presale.vestingRecords(buyer1.address, 0)).totalAmount;
       const instantAmount = (totalTokens * 2500n) / 10000n;
       const vestingAmount = totalTokens - instantAmount;
 
-      // Advance to 50% of vesting period
-      await time.increase(Number(VESTING_DURATION / 2n));
+      await time.increaseTo(Number(vestingStart) + Number(MONTH));
 
       await presale.connect(buyer1).claim();
-      const balance = await token.balanceOf(buyer1.address);
-      // Expected: instant + 50% of vesting portion (allow 1 wei rounding)
-      const expected = instantAmount + vestingAmount / 2n;
-      expect(balance).to.be.closeTo(expected, hre.ethers.parseEther("0.1"));
+      const expected = instantAmount + vestingAmount / 24n;
+      expect(await token.balanceOf(buyer1.address)).to.be.closeTo(expected, hre.ethers.parseEther("1"));
     });
 
-    it("full vesting period unlocks 100% of tokens", async () => {
-      const { presale, token, buyer1 } = await buyAndEnd();
+    it("after 12 months: instant + 12/24 unlocked", async () => {
+      const { presale, token, buyer1, vestingStart } = await buyAndEnd();
+      const totalTokens   = (await presale.vestingRecords(buyer1.address, 0)).totalAmount;
+      const instantAmount = (totalTokens * 2500n) / 10000n;
+      const vestingAmount = totalTokens - instantAmount;
+
+      await time.increaseTo(Number(vestingStart) + Number(MONTH * 12n));
+
+      await presale.connect(buyer1).claim();
+      const expected = instantAmount + (vestingAmount * 12n) / 24n;
+      expect(await token.balanceOf(buyer1.address)).to.be.closeTo(expected, hre.ethers.parseEther("1"));
+    });
+
+    it("after 24 months: 100% unlocked", async () => {
+      const { presale, token, buyer1, vestingStart } = await buyAndEnd();
       const totalTokens = (await presale.vestingRecords(buyer1.address, 0)).totalAmount;
 
-      await time.increase(Number(VESTING_DURATION));
+      await time.increaseTo(Number(vestingStart) + Number(MONTH * VESTING_MONTHS));
 
       await presale.connect(buyer1).claim();
       expect(await token.balanceOf(buyer1.address)).to.equal(totalTokens);
     });
 
     it("second claim only releases newly vested tokens", async () => {
-      const { presale, token, buyer1 } = await buyAndEnd();
-      const totalTokens = (await presale.vestingRecords(buyer1.address, 0)).totalAmount;
+      const { presale, token, buyer1, vestingStart } = await buyAndEnd();
+      const totalTokens   = (await presale.vestingRecords(buyer1.address, 0)).totalAmount;
       const instantAmount = (totalTokens * 2500n) / 10000n;
 
-      // First claim at presale end
+      // First claim — instant only
       await presale.connect(buyer1).claim();
-      expect(await token.balanceOf(buyer1.address)).to.be.closeTo(instantAmount, hre.ethers.parseEther("0.1"));
+      expect(await token.balanceOf(buyer1.address)).to.equal(instantAmount);
 
-      // Advance to 100% vesting
-      await time.increase(Number(VESTING_DURATION));
-
-      // Second claim should get remaining
+      // Second claim after full vesting
+      await time.increaseTo(Number(vestingStart) + Number(MONTH * VESTING_MONTHS));
       await presale.connect(buyer1).claim();
       expect(await token.balanceOf(buyer1.address)).to.equal(totalTokens);
     });
 
-    it("getVestingSchedule returns correct data", async () => {
+    it("getVestingSchedule returns correct totals and zeros for claimed", async () => {
       const { presale, buyer1 } = await buyAndEnd();
       const totalTokens = (await presale.vestingRecords(buyer1.address, 0)).totalAmount;
       const { totalByStage, claimedByStage } = await presale.getVestingSchedule(buyer1.address);
       expect(totalByStage[0]).to.equal(totalTokens);
-      expect(claimedByStage[0]).to.equal(0);
+      expect(claimedByStage[0]).to.equal(0n);
     });
 
-    it("stage 4 (5% instant) claims correct amount at presale end", async () => {
+    it("stage 4 (5% instant) — correct instant amount at presale end", async () => {
       const ctx = await deploy();
-      // Deplete stages 0-3
       for (let i = 0; i < 4; i++) {
         const ethNeeded = (STAGE_ALLOCS[i] * STAGE_PRICES[i]) / hre.ethers.parseEther("1");
-        await ctx.presale.connect(ctx.buyer2).buy(hre.ethers.ZeroAddress, { value: ethNeeded });
+        await ctx.presale.connect(ctx.buyer2).buy({ value: ethNeeded });
       }
-      // Buy some in stage 4
-      const ethIn = hre.ethers.parseEther("1");
-      await ctx.presale.connect(ctx.buyer1).buy(hre.ethers.ZeroAddress, { value: ethIn });
+      await ctx.presale.connect(ctx.buyer1).buy({ value: hre.ethers.parseEther("1") });
       await ctx.presale.connect(ctx.owner).endPresale();
 
       const record = await ctx.presale.vestingRecords(ctx.buyer1.address, 4);
-      const expectedInstant = (record.totalAmount * 500n) / 10000n; // 5%
+      const expectedInstant = (record.totalAmount * 500n) / 10000n;
 
       await ctx.presale.connect(ctx.buyer1).claim();
-      expect(await ctx.token.balanceOf(ctx.buyer1.address)).to.be.closeTo(expectedInstant, hre.ethers.parseEther("0.1"));
+      expect(await ctx.token.balanceOf(ctx.buyer1.address)).to.equal(expectedInstant);
+    });
+
+    it("totalClaimed tracks claimed tokens correctly", async () => {
+      const { presale, buyer1 } = await buyAndEnd();
+      expect(await presale.totalClaimed()).to.equal(0n);
+      await presale.connect(buyer1).claim();
+      expect(await presale.totalClaimed()).to.be.gt(0n);
     });
   });
 
   describe("burnUnsold", () => {
     it("burns unsold tokens to dead address after presale ends", async () => {
       const { presale, token, owner, buyer1, deadline } = await deploy();
-      await presale.connect(buyer1).buy(hre.ethers.ZeroAddress, { value: hre.ethers.parseEther("1") });
+      await presale.connect(buyer1).buy({ value: hre.ethers.parseEther("1") });
       await time.increaseTo(deadline + 1n);
 
-      const contractBalance = await token.balanceOf(await presale.getAddress());
-      const totalSold = await presale.totalTokensSold();
-      const expectedBurn = contractBalance - totalSold;
+      const totalSold    = await presale.totalTokensSold();
+      const totalClaimed = await presale.totalClaimed();
+      const owed         = totalSold - totalClaimed;
+      const balance      = await token.balanceOf(await presale.getAddress());
+      const expectedBurn = balance - owed;
 
       await presale.connect(owner).burnUnsold();
       expect(await token.balanceOf("0x000000000000000000000000000000000000dEaD")).to.equal(expectedBurn);
@@ -298,7 +292,7 @@ describe("Presale", () => {
     it("sends raised ETH to owner", async () => {
       const { presale, owner, buyer1 } = await deploy();
       const ethIn = hre.ethers.parseEther("5");
-      await presale.connect(buyer1).buy(hre.ethers.ZeroAddress, { value: ethIn });
+      await presale.connect(buyer1).buy({ value: ethIn });
 
       const raised = await presale.totalEthRaised();
       const ownerBefore = await hre.ethers.provider.getBalance(owner.address);

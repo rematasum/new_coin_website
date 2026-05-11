@@ -14,23 +14,22 @@ function parseConfig() {
     throw new Error(`deadline "${cfg.deadline}" is in the past`);
   }
 
-  const stagePrices = cfg.stages.map((s) => hre.ethers.parseEther(s.priceEth));
+  const stagePrices      = cfg.stages.map((s) => hre.ethers.parseEther(s.priceEth));
   const stageAllocations = cfg.stages.map((s) => hre.ethers.parseEther(String(s.allocationM * 1_000_000)));
   const instantUnlockBps = cfg.stages.map((s) => BigInt(s.instantUnlockBps));
+  const totalPresale     = stageAllocations.reduce((a, b) => a + b, 0n);
 
-  const totalPresale = stageAllocations.reduce((a, b) => a + b, 0n);
-  const expectedPresale = totalSupply / 4n;
-  if (totalPresale !== expectedPresale) {
-    console.warn(
-      `⚠  Stage allocations sum (${hre.ethers.formatEther(totalPresale)}) ≠ 25% of supply (${hre.ethers.formatEther(expectedPresale)}). Continuing anyway.`
-    );
-  }
+  const tv = cfg.teamVesting;
+  const tvAddresses   = tv.beneficiaries.map((b) => b.address);
+  const tvAmounts     = tv.beneficiaries.map((b) => hre.ethers.parseEther(String(b.amountM * 1_000_000)));
+  const tvInstantBps  = tv.beneficiaries.map((b) => BigInt(b.instantUnlockBps));
+  const totalTeam     = tvAmounts.reduce((a, b) => a + b, 0n);
 
-  return { totalSupply, deadlineTs, stagePrices, stageAllocations, instantUnlockBps, totalPresale };
+  return { totalSupply, deadlineTs, stagePrices, stageAllocations, instantUnlockBps, totalPresale, tvAddresses, tvAmounts, tvInstantBps, totalTeam };
 }
 
 async function main() {
-  const { totalSupply, deadlineTs, stagePrices, stageAllocations, instantUnlockBps, totalPresale } = parseConfig();
+  const { totalSupply, deadlineTs, stagePrices, stageAllocations, instantUnlockBps, totalPresale, tvAddresses, tvAmounts, tvInstantBps, totalTeam } = parseConfig();
   const [deployer] = await hre.ethers.getSigners();
 
   console.log("Network:  ", hre.network.name);
@@ -40,8 +39,8 @@ async function main() {
   console.log("Token:    ", cfg.tokenName, `(${cfg.tokenSymbol})`);
   console.log("Supply:   ", cfg.totalSupply);
   console.log("Presale:  ", hre.ethers.formatEther(totalPresale), "tokens across", cfg.stages.length, "stages");
+  console.log("Team:     ", hre.ethers.formatEther(totalTeam), "tokens across", cfg.teamVesting.beneficiaries.length, "beneficiaries");
   console.log("Deadline: ", cfg.deadline, `(${deadlineTs})`);
-  console.log("Referral: ", cfg.referralBps / 100, "%");
   console.log("");
 
   // 1. Deploy Token
@@ -58,7 +57,6 @@ async function main() {
   const presale = await Presale.deploy(
     tokenAddress,
     deadlineTs,
-    BigInt(cfg.referralBps),
     stagePrices,
     stageAllocations,
     instantUnlockBps,
@@ -68,18 +66,39 @@ async function main() {
   const presaleAddress = await presale.getAddress();
   console.log("   ✓ Presale:", presaleAddress);
 
-  // 3. Transfer presale allocation
-  console.log("3. Transferring", hre.ethers.formatEther(totalPresale), "tokens to Presale contract...");
-  const tx = await token.transfer(presaleAddress, totalPresale);
-  await tx.wait();
+  // 3. Deploy TeamVesting
+  console.log("3. Deploying TeamVesting...");
+  const TeamVesting = await hre.ethers.getContractFactory("TeamVesting");
+  const teamVesting = await TeamVesting.deploy(
+    tokenAddress,
+    tvAddresses,
+    tvAmounts,
+    tvInstantBps,
+    deployer.address
+  );
+  await teamVesting.waitForDeployment();
+  const teamVestingAddress = await teamVesting.getAddress();
+  console.log("   ✓ TeamVesting:", teamVestingAddress);
+
+  // 4. Transfer presale allocation to Presale
+  console.log("4. Transferring", hre.ethers.formatEther(totalPresale), "tokens to Presale contract...");
+  const tx1 = await token.transfer(presaleAddress, totalPresale);
+  await tx1.wait();
   console.log("   ✓ Done");
 
-  // 4. Save deployment record
+  // 5. Transfer team allocation to TeamVesting
+  console.log("5. Transferring", hre.ethers.formatEther(totalTeam), "tokens to TeamVesting contract...");
+  const tx2 = await token.transfer(teamVestingAddress, totalTeam);
+  await tx2.wait();
+  console.log("   ✓ Done");
+
+  // 6. Save deployment record
   const deploymentInfo = {
     network: hre.network.name,
     chainId: (await hre.ethers.provider.getNetwork()).chainId.toString(),
     tokenAddress,
     presaleAddress,
+    teamVestingAddress,
     deployer: deployer.address,
     deployedAt: new Date().toISOString(),
     config: {
@@ -87,8 +106,8 @@ async function main() {
       tokenSymbol: cfg.tokenSymbol,
       totalSupply: cfg.totalSupply,
       deadline: cfg.deadline,
-      referralBps: cfg.referralBps,
       stages: cfg.stages,
+      teamVesting: cfg.teamVesting,
     },
   };
   const outDir = resolve(__dirname, "../deployments");
@@ -97,17 +116,21 @@ async function main() {
   writeFileSync(outPath, JSON.stringify(deploymentInfo, null, 2));
   console.log("\nDeployment saved →", outPath);
 
+  const chainId = hre.network.name === "base_mainnet" ? 8453 : 84532;
   console.log("\n═══════════════════════════════════");
   console.log("  DEPLOYMENT COMPLETE");
   console.log("═══════════════════════════════════");
-  console.log("  Token:  ", tokenAddress);
-  console.log("  Presale:", presaleAddress);
+  console.log("  Token:       ", tokenAddress);
+  console.log("  Presale:     ", presaleAddress);
+  console.log("  TeamVesting: ", teamVestingAddress);
   console.log("═══════════════════════════════════");
   console.log("\nNext — add to frontend/.env.local:");
   console.log(`  NEXT_PUBLIC_TOKEN_ADDRESS=${tokenAddress}`);
   console.log(`  NEXT_PUBLIC_PRESALE_ADDRESS=${presaleAddress}`);
-  console.log(`  NEXT_PUBLIC_CHAIN_ID=${hre.network.name === "base_mainnet" ? 8453 : 84532}`);
-  console.log("\nNext — verify on Basescan:");
+  console.log(`  NEXT_PUBLIC_TEAM_VESTING_ADDRESS=${teamVestingAddress}`);
+  console.log(`  NEXT_PUBLIC_CHAIN_ID=${chainId}`);
+  console.log("\nNext — call startVesting() on TeamVesting with the next 15th timestamp.");
+  console.log("Next — verify on Basescan:");
   console.log(`  npx hardhat verify --network ${hre.network.name} ${tokenAddress} "${cfg.tokenName}" "${cfg.tokenSymbol}" ${totalSupply} ${deployer.address}`);
 }
 

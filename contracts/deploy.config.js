@@ -1,28 +1,25 @@
 /**
  * Deployment configuration for Flozy (FLZY).
  * Edit this file before running the deploy script.
- * These values are written to the blockchain and CANNOT be changed after deploy.
+ * Values written to the blockchain CANNOT be changed after deploy.
  */
 
 export default {
   // ── Token ──────────────────────────────────────────────────────────────────
-  tokenName: "Flozy",
+  tokenName:   "Flozy",
   tokenSymbol: "FLZY",
   totalSupply: "1000000000", // 1 billion
 
   // ── Presale ────────────────────────────────────────────────────────────────
 
-  // Presale end date. Format: "YYYY-MM-DD" (midnight UTC).
-  deadline: "2025-08-01", // TODO: confirm before mainnet deploy
+  // Presale deadline. Format: "YYYY-MM-DD" (midnight UTC).
+  deadline: "2025-08-01",
 
-  // Referral bonus in basis points. 500 = 5%, 0 = disabled.
-  referralBps: 500,
-
-  // ── Stages ─────────────────────────────────────────────────────────────────
+  // ── Stages (5 × 50M = 250M = 25% of supply) ───────────────────────────────
   // priceEth         — price per 1 full token in ETH
-  // allocationM      — millions of tokens in this stage (5 × 50M = 250M = 25% of 1B)
-  // instantUnlockBps — % unlocked immediately when presale ends (basis points: 2500 = 25%)
-  //                    Remaining % vests linearly over 24 months from presale end.
+  // allocationM      — millions of tokens in this stage
+  // instantUnlockBps — % unlocked immediately when presale ends (basis points)
+  //                    Remaining % vests monthly over 24 months from first 15th.
   stages: [
     { priceEth: "0.000002",  allocationM: 50, instantUnlockBps: 2500 }, // Stage 1 — 25% instant
     { priceEth: "0.0000022", allocationM: 50, instantUnlockBps: 2000 }, // Stage 2 — 20% instant
@@ -30,4 +27,19 @@ export default {
     { priceEth: "0.000003",  allocationM: 50, instantUnlockBps: 1000 }, // Stage 4 — 10% instant
     { priceEth: "0.000004",  allocationM: 50, instantUnlockBps:  500 }, // Stage 5 —  5% instant
   ],
+
+  // ── Team & Sponsor Vesting (250M total) ────────────────────────────────────
+  // Replace placeholder addresses with real wallet addresses before mainnet deploy.
+  // instantUnlockBps: 0 = fully vested over 24 months, no instant unlock.
+  // Vesting starts on the first 15th of the month after owner calls startVesting().
+  teamVesting: {
+    beneficiaries: [
+      { name: "Team & Dev", address: "0x0000000000000000000000000000000000000001", amountM: 100, instantUnlockBps: 0 },
+      { name: "Sponsor 1",  address: "0x0000000000000000000000000000000000000002", amountM: 30,  instantUnlockBps: 0 },
+      { name: "Sponsor 2",  address: "0x0000000000000000000000000000000000000003", amountM: 30,  instantUnlockBps: 0 },
+      { name: "Sponsor 3",  address: "0x0000000000000000000000000000000000000004", amountM: 30,  instantUnlockBps: 0 },
+      { name: "Sponsor 4",  address: "0x0000000000000000000000000000000000000005", amountM: 30,  instantUnlockBps: 0 },
+      { name: "Sponsor 5",  address: "0x0000000000000000000000000000000000000006", amountM: 30,  instantUnlockBps: 0 },
+    ],
+  },
 };

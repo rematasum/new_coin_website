@@ -7,10 +7,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title Presale
- * @notice Staged presale with per-stage linear vesting.
- *         Each stage has an instant unlock % and a 24-month linear vesting schedule.
- *         Users buy with ETH; tokens are partially claimable immediately after presale,
- *         with the remainder vesting linearly over 24 months.
+ * @notice Staged presale with per-stage monthly vesting.
+ *         Each stage has an instant unlock % and a 24-month vesting schedule.
+ *         Vesting unlocks on the 15th of each month starting from the first 15th
+ *         after presale ends. Users buy with ETH; tokens are partially claimable
+ *         immediately after presale, with the remainder unlocking monthly.
  */
 contract Presale is Ownable, ReentrancyGuard {
     // ─── Types ────────────────────────────────────────────────────────────────
@@ -19,12 +20,12 @@ contract Presale is Ownable, ReentrancyGuard {
         uint256 tokenPrice;       // wei per token (scaled by 1e18)
         uint256 tokenAllocation;  // total tokens allocated (18 decimals)
         uint256 tokensSold;       // tokens sold so far
-        uint256 instantUnlockBps; // basis points unlocked instantly at presale end (e.g. 2500 = 25%)
+        uint256 instantUnlockBps; // basis points unlocked instantly at presale end
     }
 
     struct VestingRecord {
-        uint256 totalAmount;  // total tokens purchased at this stage
-        uint256 claimed;      // tokens already claimed from this stage
+        uint256 totalAmount; // total tokens purchased at this stage
+        uint256 claimed;     // tokens already claimed from this stage
     }
 
     // ─── State ────────────────────────────────────────────────────────────────
@@ -37,27 +38,29 @@ contract Presale is Ownable, ReentrancyGuard {
     uint256 public deadline;
     bool public presaleActive;
     bool public presaleEnded;
-    uint256 public presaleEndTime; // set when presale ends — vesting clock starts here
+    uint256 public presaleEndTime;
 
-    uint256 public constant VESTING_DURATION = 730 days; // 24 months
+    // Midnight UTC of the first 15th-of-month on or after presale end.
+    // Monthly vesting tranches unlock every 30 days from this timestamp.
+    uint256 public vestingStart;
 
-    uint256 public referralBonusBps;
+    uint256 public constant VESTING_MONTHS = 24;
+    uint256 public constant MONTH_DURATION = 30 days;
 
     // user → stageIndex → vesting record
     mapping(address => mapping(uint256 => VestingRecord)) public vestingRecords;
-    // user → total ETH spent
     mapping(address => uint256) public ethSpent;
 
     uint256 public totalTokensSold;
     uint256 public totalEthRaised;
+    uint256 public totalClaimed;
 
     // ─── Events ───────────────────────────────────────────────────────────────
 
     event TokensPurchased(address indexed buyer, uint256 ethAmount, uint256 tokenAmount, uint256 stage);
-    event ReferralBonus(address indexed referrer, address indexed buyer, uint256 bonusTokens, uint256 stage);
     event Claimed(address indexed user, uint256 tokenAmount);
     event StageAdvanced(uint256 newStage);
-    event PresaleEnded(uint256 totalSold, uint256 totalRaised, uint256 endTime);
+    event PresaleEnded(uint256 totalSold, uint256 totalRaised, uint256 endTime, uint256 vestingStart);
     event UnsoldTokensBurned(uint256 amount);
     event EthWithdrawn(address indexed to, uint256 amount);
 
@@ -66,7 +69,6 @@ contract Presale is Ownable, ReentrancyGuard {
     constructor(
         address token_,
         uint256 deadline_,
-        uint256 referralBonusBps_,
         uint256[] memory stagePrices_,
         uint256[] memory stageAllocations_,
         uint256[] memory instantUnlockBps_,
@@ -77,11 +79,9 @@ contract Presale is Ownable, ReentrancyGuard {
         require(stagePrices_.length == stageAllocations_.length, "Stage length mismatch");
         require(stagePrices_.length == instantUnlockBps_.length, "Unlock bps length mismatch");
         require(stagePrices_.length > 0, "No stages");
-        require(referralBonusBps_ <= 2000, "Referral too high");
 
         token = IERC20(token_);
         deadline = deadline_;
-        referralBonusBps = referralBonusBps_;
 
         for (uint256 i = 0; i < stagePrices_.length; i++) {
             require(stagePrices_[i] > 0, "Price must be > 0");
@@ -109,16 +109,11 @@ contract Presale is Ownable, ReentrancyGuard {
 
     // ─── Public ───────────────────────────────────────────────────────────────
 
-    /**
-     * @notice Buy tokens with ETH. Pass referrer address or address(0) for no referral.
-     */
-    function buy(address referrer) external payable nonReentrant whenActive {
+    function buy() external payable nonReentrant whenActive {
         require(msg.value > 0, "Send ETH");
-        require(referrer != msg.sender, "Self-referral");
 
         uint256 remaining = msg.value;
         uint256 totalTokens = 0;
-        uint256 firstStage = currentStage; // track starting stage for referral
 
         while (remaining > 0 && currentStage < stages.length) {
             Stage storage stage = stages[currentStage];
@@ -153,7 +148,6 @@ contract Presale is Ownable, ReentrancyGuard {
 
         require(totalTokens > 0, "No tokens to buy");
 
-        // Refund any unspent dust ETH
         uint256 ethUsed = msg.value - remaining;
         if (remaining > 0) {
             (bool refunded, ) = msg.sender.call{value: remaining}("");
@@ -166,16 +160,6 @@ contract Presale is Ownable, ReentrancyGuard {
 
         emit TokensPurchased(msg.sender, ethUsed, totalTokens, currentStage);
 
-        // Referral bonus — credited to the referrer, vests under the starting stage rules
-        if (referrer != address(0) && referralBonusBps > 0) {
-            uint256 bonus = (totalTokens * referralBonusBps) / 10000;
-            if (bonus > 0 && _availableTokenBalance() >= bonus) {
-                vestingRecords[referrer][firstStage].totalAmount += bonus;
-                totalTokensSold += bonus;
-                emit ReferralBonus(referrer, msg.sender, bonus, firstStage);
-            }
-        }
-
         if (currentStage >= stages.length) {
             _endPresale();
         }
@@ -183,11 +167,11 @@ contract Presale is Ownable, ReentrancyGuard {
 
     /**
      * @notice Claim all currently unlocked tokens.
-     *         Can be called multiple times as vesting progresses.
+     *         Instant unlock is available right after presale ends.
+     *         Monthly tranches unlock every 30 days starting from vestingStart.
      */
     function claim() external nonReentrant {
         require(_isEnded(), "Presale not ended yet");
-        uint256 endTime = presaleEndTime > 0 ? presaleEndTime : deadline;
 
         uint256 totalClaimable = 0;
 
@@ -195,7 +179,7 @@ contract Presale is Ownable, ReentrancyGuard {
             VestingRecord storage record = vestingRecords[msg.sender][i];
             if (record.totalAmount == 0) continue;
 
-            uint256 unlockable = _calculateUnlockable(record.totalAmount, stages[i].instantUnlockBps, endTime);
+            uint256 unlockable = _calculateUnlockable(record.totalAmount, stages[i].instantUnlockBps);
             if (unlockable > record.claimed) {
                 uint256 claimable = unlockable - record.claimed;
                 record.claimed += claimable;
@@ -204,6 +188,7 @@ contract Presale is Ownable, ReentrancyGuard {
         }
 
         require(totalClaimable > 0, "Nothing to claim");
+        totalClaimed += totalClaimable;
         require(token.transfer(msg.sender, totalClaimable), "Transfer failed");
 
         emit Claimed(msg.sender, totalClaimable);
@@ -235,17 +220,12 @@ contract Presale is Ownable, ReentrancyGuard {
         return _isEnded();
     }
 
-    /**
-     * @notice How many tokens the user can claim right now.
-     */
     function getClaimableNow(address user) external view returns (uint256 total) {
         if (!_isEnded()) return 0;
-        uint256 endTime = presaleEndTime > 0 ? presaleEndTime : deadline;
-
         for (uint256 i = 0; i < stages.length; i++) {
             VestingRecord memory record = vestingRecords[user][i];
             if (record.totalAmount == 0) continue;
-            uint256 unlockable = _calculateUnlockable(record.totalAmount, stages[i].instantUnlockBps, endTime);
+            uint256 unlockable = _calculateUnlockable(record.totalAmount, stages[i].instantUnlockBps);
             if (unlockable > record.claimed) {
                 total += unlockable - record.claimed;
             }
@@ -253,25 +233,23 @@ contract Presale is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Full vesting breakdown per stage for a user.
-     * @return totalByStage    Total tokens purchased per stage
+     * @notice Full vesting breakdown per stage.
+     * @return totalByStage    Total tokens per stage
      * @return claimedByStage  Tokens already claimed per stage
-     * @return claimableNow    Currently claimable (not yet claimed) per stage
-     * @return fullyVestedAt   Unix timestamp when full stage allocation is unlocked
+     * @return claimableNow    Currently claimable (unclaimed) per stage
+     * @return nextUnlockAt    Timestamp of the next monthly unlock for each stage
      */
     function getVestingSchedule(address user) external view returns (
         uint256[] memory totalByStage,
         uint256[] memory claimedByStage,
         uint256[] memory claimableNow,
-        uint256[] memory fullyVestedAt
+        uint256[] memory nextUnlockAt
     ) {
         uint256 n = stages.length;
         totalByStage   = new uint256[](n);
         claimedByStage = new uint256[](n);
         claimableNow   = new uint256[](n);
-        fullyVestedAt  = new uint256[](n);
-
-        uint256 endTime = presaleEndTime > 0 ? presaleEndTime : deadline;
+        nextUnlockAt   = new uint256[](n);
 
         for (uint256 i = 0; i < n; i++) {
             VestingRecord memory record = vestingRecords[user][i];
@@ -279,18 +257,27 @@ contract Presale is Ownable, ReentrancyGuard {
             claimedByStage[i] = record.claimed;
 
             if (record.totalAmount > 0 && _isEnded()) {
-                uint256 unlockable = _calculateUnlockable(record.totalAmount, stages[i].instantUnlockBps, endTime);
+                uint256 unlockable = _calculateUnlockable(record.totalAmount, stages[i].instantUnlockBps);
                 if (unlockable > record.claimed) {
                     claimableNow[i] = unlockable - record.claimed;
                 }
             }
-            fullyVestedAt[i] = endTime + VESTING_DURATION;
+
+            // Next unlock: the next 30-day boundary from vestingStart
+            if (vestingStart > 0) {
+                if (block.timestamp < vestingStart) {
+                    nextUnlockAt[i] = vestingStart;
+                } else {
+                    uint256 elapsed = block.timestamp - vestingStart;
+                    uint256 monthsPassed = elapsed / MONTH_DURATION;
+                    if (monthsPassed < VESTING_MONTHS) {
+                        nextUnlockAt[i] = vestingStart + (monthsPassed + 1) * MONTH_DURATION;
+                    }
+                }
+            }
         }
     }
 
-    /**
-     * @notice Estimate tokens received for a given ETH amount.
-     */
     function estimateTokens(uint256 ethAmount) external view returns (uint256 tokens) {
         uint256 remaining = ethAmount;
         uint256 stageIdx = currentStage;
@@ -315,9 +302,7 @@ contract Presale is Ownable, ReentrancyGuard {
         }
     }
 
-    /**
-     * @notice Legacy: total tokens credited to user across all stages.
-     */
+    // Legacy: total tokens credited across all stages
     function contributions(address user) external view returns (uint256 total) {
         for (uint256 i = 0; i < stages.length; i++) {
             total += vestingRecords[user][i].totalAmount;
@@ -342,15 +327,11 @@ contract Presale is Ownable, ReentrancyGuard {
         deadline = newDeadline;
     }
 
-    function updateReferralBonus(uint256 bps) external onlyOwner {
-        require(bps <= 2000, "Too high");
-        referralBonusBps = bps;
-    }
-
     function burnUnsold() external onlyOwner {
         require(_isEnded(), "Presale not ended");
-        uint256 balance = token.balanceOf(address(this));
-        uint256 unsold = balance > totalTokensSold ? balance - totalTokensSold : 0;
+        uint256 contractBalance = token.balanceOf(address(this));
+        uint256 owed = totalTokensSold - totalClaimed; // tokens still owed to buyers
+        uint256 unsold = contractBalance > owed ? contractBalance - owed : 0;
         require(unsold > 0, "No unsold tokens");
         require(token.transfer(address(0xdead), unsold), "Burn failed");
         emit UnsoldTokensBurned(unsold);
@@ -376,38 +357,71 @@ contract Presale is Ownable, ReentrancyGuard {
         presaleActive = false;
         presaleEnded = true;
         presaleEndTime = block.timestamp;
-        emit PresaleEnded(totalTokensSold, totalEthRaised, block.timestamp);
+        vestingStart = _nextFifteenth(block.timestamp);
+        emit PresaleEnded(totalTokensSold, totalEthRaised, block.timestamp, vestingStart);
     }
 
     function _isEnded() internal view returns (bool) {
         return presaleEnded || block.timestamp > deadline;
     }
 
-    function _availableTokenBalance() internal view returns (uint256) {
-        uint256 bal = token.balanceOf(address(this));
-        return bal > totalTokensSold ? bal - totalTokensSold : 0;
-    }
-
     /**
-     * @notice Calculates how many tokens are unlocked for a given stage allocation.
-     * @param total          Total tokens purchased at this stage
-     * @param instantBps     Instant unlock in basis points
-     * @param endTime        Presale end timestamp (vesting start)
+     * @notice Calculates unlocked tokens for a stage allocation.
+     *         Instant % is available immediately after presale ends.
+     *         Remaining vests in 24 monthly tranches from vestingStart.
      */
-    function _calculateUnlockable(
-        uint256 total,
-        uint256 instantBps,
-        uint256 endTime
-    ) internal view returns (uint256) {
+    function _calculateUnlockable(uint256 total, uint256 instantBps) internal view returns (uint256) {
         uint256 instantAmount = (total * instantBps) / 10000;
         uint256 vestingAmount = total - instantAmount;
 
-        if (block.timestamp <= endTime) return instantAmount;
+        if (vestingStart == 0 || block.timestamp < vestingStart) {
+            return instantAmount;
+        }
 
-        uint256 elapsed = block.timestamp - endTime;
-        if (elapsed >= VESTING_DURATION) return total;
+        uint256 elapsed = block.timestamp - vestingStart;
+        uint256 monthsVested = elapsed / MONTH_DURATION;
+        if (monthsVested >= VESTING_MONTHS) return total;
 
-        uint256 vested = (vestingAmount * elapsed) / VESTING_DURATION;
+        uint256 vested = (vestingAmount * monthsVested) / VESTING_MONTHS;
         return instantAmount + vested;
+    }
+
+    /**
+     * @notice Returns midnight UTC of the first 15th-of-month on or after `ts`.
+     *         Uses Howard Hinnant's civil calendar algorithm (public domain).
+     */
+    function _nextFifteenth(uint256 ts) internal pure returns (uint256) {
+        uint256 daysSinceEpoch = ts / 86400;
+
+        // civil_from_days
+        uint256 z   = daysSinceEpoch + 719468;
+        uint256 era = z / 146097;
+        uint256 doe = z - era * 146097;
+        uint256 yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+        uint256 doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+        uint256 mp  = (5 * doy + 2) / 153;
+        uint256 d   = doy - (153 * mp + 2) / 5 + 1; // day of month [1..31]
+        uint256 m   = mp < 10 ? mp + 3 : mp - 9;    // month [1..12]
+        uint256 y   = yoe + era * 400 + (m <= 2 ? 1 : 0);
+
+        uint256 tYear;
+        uint256 tMonth;
+        if (d <= 15) {
+            tYear  = y;
+            tMonth = m;
+        } else {
+            if (m == 12) { tYear = y + 1; tMonth = 1; }
+            else          { tYear = y;     tMonth = m + 1; }
+        }
+
+        // days_from_civil(tYear, tMonth, 15)
+        uint256 ty   = tMonth <= 2 ? tYear - 1 : tYear;
+        uint256 tm   = tMonth <= 2 ? tMonth + 9 : tMonth - 3;
+        uint256 tEra = ty / 400;
+        uint256 tYoe = ty - tEra * 400;
+        uint256 tDoy = (153 * tm + 2) / 5 + 14; // day 15 → 0-indexed = 14
+        uint256 tDoe = tYoe * 365 + tYoe / 4 - tYoe / 100 + tDoy;
+
+        return (tEra * 146097 + tDoe - 719468) * 86400;
     }
 }
