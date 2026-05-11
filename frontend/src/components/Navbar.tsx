@@ -26,9 +26,21 @@ export function Navbar() {
              className="font-fredoka text-white hover:text-meme-yellow transition-colors text-sm font-semibold tracking-wide">
             Buy $FLZY
           </a>
+          <a href="#tokenomics"
+             className="font-fredoka text-white hover:text-meme-yellow transition-colors text-sm font-semibold tracking-wide">
+            Tokenomics
+          </a>
+          <a href="#roadmap"
+             className="font-fredoka text-white hover:text-meme-yellow transition-colors text-sm font-semibold tracking-wide">
+            Roadmap
+          </a>
           <a href="#airdrop"
              className="font-fredoka text-white hover:text-meme-yellow transition-colors text-sm font-semibold tracking-wide">
             Airdrop
+          </a>
+          <a href="#faq"
+             className="font-fredoka text-white hover:text-meme-yellow transition-colors text-sm font-semibold tracking-wide">
+            FAQ
           </a>
           <a href="https://x.com/flozymeme" target="_blank" rel="noopener noreferrer"
              className="font-fredoka text-white hover:text-sky-base transition-colors text-sm font-semibold tracking-wide">
