@@ -136,6 +136,60 @@ body {
 .btn-meme-orange:active { transform: translate(3px,3px);   box-shadow: 2px 2px 0px #000; }
 .btn-meme-orange:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
+.btn-meme-green {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, #26FF84 0%, #00E676 50%, #00C853 100%);
+  color: #000;
+  border: 4px solid #000;
+  border-radius: 50px;
+  box-shadow: 5px 5px 0px #000;
+  font-family: 'Bangers', cursive;
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+  padding: 0.7rem 2rem;
+  cursor: pointer;
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.btn-meme-green:hover  { transform: translate(-2px,-2px); box-shadow: 7px 7px 0px #000; }
+.btn-meme-green:active { transform: translate(3px,3px);   box-shadow: 2px 2px 0px #000; }
+.btn-meme-green:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+.btn-meme-purple {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, #E040FB 0%, #D500F9 50%, #AA00FF 100%);
+  color: #fff;
+  border: 4px solid #000;
+  border-radius: 50px;
+  box-shadow: 5px 5px 0px #000;
+  font-family: 'Bangers', cursive;
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+  padding: 0.7rem 2rem;
+  cursor: pointer;
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.btn-meme-purple:hover  { transform: translate(-2px,-2px); box-shadow: 7px 7px 0px #000; }
+.btn-meme-purple:active { transform: translate(3px,3px);   box-shadow: 2px 2px 0px #000; }
+.btn-meme-purple:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+.btn-meme-gray {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, #9E9E9E 0%, #757575 50%, #616161 100%);
+  color: #fff;
+  border: 4px solid #000;
+  border-radius: 50px;
+  box-shadow: 5px 5px 0px #000;
+  font-family: 'Bangers', cursive;
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+  padding: 0.7rem 2rem;
+  cursor: pointer;
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.btn-meme-gray:hover  { transform: translate(-2px,-2px); box-shadow: 7px 7px 0px #000; }
+.btn-meme-gray:active { transform: translate(3px,3px);   box-shadow: 2px 2px 0px #000; }
+.btn-meme-gray:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
 /* ── Pill / Tag ───────────────────────────────────────────────────── */
 .meme-badge {
   display: inline-flex; align-items: center; gap: 6px;
@@ -233,5 +287,8 @@ body {
 .txt-blue     { color: #4FB9E8; }
 .txt-orange   { color: #FF6B00; }
 .txt-green    { color: #00E676; }
+.txt-purple   { color: #E040FB; }
 .grad-yellow  { background: linear-gradient(135deg,#FFE55C,#FF6B00); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
 .grad-blue    { background: linear-gradient(135deg,#87D4F5,#4FB9E8); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.meme-green   { color: #00E676; }
+.meme-purple  { color: #E040FB; }

@@ -91,8 +91,9 @@ export function PresaleWidget() {
   const stagePct = stageInfo && stageInfo.tokenAllocation > 0n
     ? Math.min(Number(stageInfo.tokensSold * 10000n / stageInfo.tokenAllocation) / 100, 100) : 0;
 
+  const claimableAmount: bigint = (claimable as bigint) ?? 0n;
   const canBuy   = isConnected && isCorrectChain && presaleActive && !isEnded && ethInputWei > 0n;
-  const canClaim = isConnected && isCorrectChain && isEnded && (claimable as bigint ?? 0n) > 0n;
+  const canClaim = isConnected && isCorrectChain && isEnded && claimableAmount > 0n;
   const stageIdx = currentStage !== undefined ? Number(currentStage) : 0;
 
   return (
@@ -211,7 +212,7 @@ export function PresaleWidget() {
             <div className="meme-card p-4 text-center border-meme-green" style={{ borderColor: "#00E676" }}>
               <p className="font-fredoka text-xs text-gray-400 mb-1">Claimable Now</p>
               <p className="font-bangers text-3xl txt-green" style={{ letterSpacing: "2px" }}>
-                {formatTokenAmount(claimable as bigint ?? 0n)} FLZY
+                {formatTokenAmount(claimableAmount)} FLZY
               </p>
               <p className="font-fredoka text-xs text-gray-500 mt-1">Instant unlock + vested portion</p>
             </div>

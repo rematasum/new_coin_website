@@ -1,6 +1,7 @@
 import { Navbar } from "@/components/Navbar";
 import { MarqueeText } from "@/components/MarqueeText";
 import { HeroSection } from "@/components/HeroSection";
+import { ClaimsSection } from "@/components/ClaimsSection";
 import { Tokenomics } from "@/components/Tokenomics";
 import { Roadmap } from "@/components/Roadmap";
 import { AirdropForm } from "@/components/AirdropForm";
@@ -13,6 +14,7 @@ export default function Home() {
       <MarqueeText />
       <Navbar />
       <HeroSection />
+      <ClaimsSection />
       <Tokenomics />
       <Roadmap />
       <AirdropForm />

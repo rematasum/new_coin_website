@@ -52,7 +52,6 @@ contract TeamVesting is Ownable, ReentrancyGuard {
         uint256[] memory instantBps_,
         address owner_
     ) Ownable(owner_) {
-        require(token_ != address(0), "Invalid token");
         require(addresses_.length == amounts_.length, "Length mismatch");
         require(addresses_.length == instantBps_.length, "Length mismatch");
         require(addresses_.length > 0, "No beneficiaries");

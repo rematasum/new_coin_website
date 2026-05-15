@@ -29,10 +29,7 @@ export default {
     },
   },
   etherscan: {
-    apiKey: {
-      base_sepolia: BASESCAN_API_KEY,
-      base_mainnet: BASESCAN_API_KEY,
-    },
+    apiKey: BASESCAN_API_KEY,
     customChains: [
       {
         network: "base_sepolia",

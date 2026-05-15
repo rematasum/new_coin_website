@@ -63,6 +63,7 @@ contract Presale is Ownable, ReentrancyGuard {
     event PresaleEnded(uint256 totalSold, uint256 totalRaised, uint256 endTime, uint256 vestingStart);
     event UnsoldTokensBurned(uint256 amount);
     event EthWithdrawn(address indexed to, uint256 amount);
+    event NewPurchase(address indexed buyer, uint256 tokenAmount);
 
     // ─── Constructor ──────────────────────────────────────────────────────────
 
@@ -74,7 +75,6 @@ contract Presale is Ownable, ReentrancyGuard {
         uint256[] memory instantUnlockBps_,
         address owner_
     ) Ownable(owner_) {
-        require(token_ != address(0), "Invalid token");
         require(deadline_ > block.timestamp, "Deadline in past");
         require(stagePrices_.length == stageAllocations_.length, "Stage length mismatch");
         require(stagePrices_.length == instantUnlockBps_.length, "Unlock bps length mismatch");
@@ -159,6 +159,7 @@ contract Presale is Ownable, ReentrancyGuard {
         totalEthRaised += ethUsed;
 
         emit TokensPurchased(msg.sender, ethUsed, totalTokens, currentStage);
+        emit NewPurchase(msg.sender, totalTokens);
 
         if (currentStage >= stages.length) {
             _endPresale();

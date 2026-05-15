@@ -26,6 +26,10 @@ export function Navbar() {
              className="font-fredoka text-white hover:text-meme-yellow transition-colors text-sm font-semibold tracking-wide">
             Buy $FLZY
           </a>
+          <a href="#claims"
+             className="font-fredoka text-white hover:text-meme-yellow transition-colors text-sm font-semibold tracking-wide">
+            Claims
+          </a>
           <a href="#tokenomics"
              className="font-fredoka text-white hover:text-meme-yellow transition-colors text-sm font-semibold tracking-wide">
             Tokenomics

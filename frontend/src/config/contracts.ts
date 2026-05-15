@@ -1,6 +1,7 @@
 export const TOKEN_ADDRESS = (process.env.NEXT_PUBLIC_TOKEN_ADDRESS ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
 export const PRESALE_ADDRESS = (process.env.NEXT_PUBLIC_PRESALE_ADDRESS ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
 export const TEAM_VESTING_ADDRESS = (process.env.NEXT_PUBLIC_TEAM_VESTING_ADDRESS ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
+export const AIRDROP_VAULT_ADDRESS = (process.env.NEXT_PUBLIC_AIRDROP_VAULT_ADDRESS ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
 export const STAGE_COUNT = 5;
 
@@ -50,9 +51,50 @@ export const PRESALE_ABI = [
   { name: "claim", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] },
 ] as const;
 
+export const TEAM_VESTING_ABI = [
+  // ── Read ──────────────────────────────────────────────────────────
+  { name: "vestingStart",    type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { name: "vestingActive",   type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "bool" }] },
+  { name: "getClaimableNow", type: "function", stateMutability: "view", inputs: [{ name: "user", type: "address" }], outputs: [{ type: "uint256" }] },
+  { name: "getBeneficiary",  type: "function", stateMutability: "view",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [
+      { name: "totalAmount", type: "uint256" },
+      { name: "claimed", type: "uint256" },
+      { name: "instantUnlockBps", type: "uint256" },
+      { name: "claimableNow", type: "uint256" },
+      { name: "nextUnlockAt", type: "uint256" },
+    ],
+  },
+  { name: "beneficiaryCount", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  // ── Write ─────────────────────────────────────────────────────────
+  { name: "claim", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] },
+] as const;
+
+export const AIRDROP_VAULT_ABI = [
+  // ── Read ──────────────────────────────────────────────────────────
+  { name: "fixedUnlockDate", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { name: "getClaimableNow", type: "function", stateMutability: "view", inputs: [{ name: "user", type: "address" }], outputs: [{ type: "uint256" }] },
+  { name: "getAllocation",   type: "function", stateMutability: "view",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [
+      { name: "totalAmount", type: "uint256" },
+      { name: "claimed", type: "uint256" },
+      { name: "claimableNow", type: "uint256" },
+      { name: "daysUntilUnlock", type: "uint256" },
+    ],
+  },
+  { name: "participantCount", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { name: "totalAllocated",  type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { name: "totalClaimed",    type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  // ── Write ─────────────────────────────────────────────────────────
+  { name: "claim", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] },
+] as const;
+
 export const TOKEN_ABI = [
   { name: "name",        type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
   { name: "symbol",      type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
   { name: "decimals",    type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
   { name: "totalSupply", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { name: "balanceOf",   type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
 ] as const;

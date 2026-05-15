@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem C:\\\\Users\\\\atame\\\\new_coin_website\\\\frontend\\\\src\\\\components *)"
+    ]
+  }
+}
