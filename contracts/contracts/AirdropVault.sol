@@ -21,7 +21,7 @@ contract AirdropVault is Ownable, ReentrancyGuard {
 
     // ─── State ────────────────────────────────────────────────────────────────
 
-    IERC20 public immutable token;
+    IERC20 public token;
     uint256 public immutable fixedUnlockDate; // Unix timestamp when airdrop unlocks
 
     mapping(address => AirdropAllocation) public allocations;
@@ -34,6 +34,7 @@ contract AirdropVault is Ownable, ReentrancyGuard {
 
     event ParticipantsAdded(address[] indexed participants, uint256[] amounts);
     event Claimed(address indexed user, uint256 amount);
+    event TokenSet(address indexed token);
 
     // ─── Constructor ───────────────────────────────────────────────────────────
 
@@ -55,6 +56,18 @@ contract AirdropVault is Ownable, ReentrancyGuard {
     }
 
     // ─── Owner ────────────────────────────────────────────────────────────────
+
+    /**
+     * @notice Set the FLZY token address. Can only be called once, after Token deploy.
+     *         Required because deploy ordering: AirdropVault is deployed before Token,
+     *         so token is set to address(0) at construction.
+     */
+    function setToken(address token_) external onlyOwner {
+        require(address(token) == address(0), "Token already set");
+        require(token_ != address(0), "Invalid token address");
+        token = IERC20(token_);
+        emit TokenSet(token_);
+    }
 
     /**
      * @notice Batch add airdrop participants with allocations.

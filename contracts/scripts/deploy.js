@@ -168,8 +168,22 @@ async function main() {
   const tokenAddress = await token.getAddress();
   console.log("   ✓ Token:", tokenAddress);
 
-  // 5. Save deployment record and verification arguments
-  console.log("\n5. Saving deployment record and verification arguments...");
+  // 5. Wire token address into satellite contracts (one-shot setToken).
+  //    Required because satellites were deployed with ZeroAddress placeholder
+  //    above (circular dependency: Token needs satellite addresses to mint).
+  console.log("\n5. Wiring token address into satellite contracts...");
+  const setTokenTx1 = await presale.setToken(tokenAddress);
+  await setTokenTx1.wait();
+  console.log("   ✓ Presale.setToken");
+  const setTokenTx2 = await teamVesting.setToken(tokenAddress);
+  await setTokenTx2.wait();
+  console.log("   ✓ TeamVesting.setToken");
+  const setTokenTx3 = await airdropVault.setToken(tokenAddress);
+  await setTokenTx3.wait();
+  console.log("   ✓ AirdropVault.setToken");
+
+  // 6. Save deployment record and verification arguments
+  console.log("\n6. Saving deployment record and verification arguments...");
   const deploymentInfo = {
     network: hre.network.name,
     chainId: (await hre.ethers.provider.getNetwork()).chainId.toString(),
@@ -287,6 +301,8 @@ export default [
   console.log("     with Unix timestamp of next 15th of month.");
   console.log("\n  3. Add airdrop participants to AirdropVault:");
   console.log("     addAirdropParticipants(address[] users, uint256[] amounts)");
+  console.log("\n  Note: setToken() was called automatically on all 3 satellite contracts");
+  console.log("        during deploy (step 5). No manual action required.");
   console.log("\n  4. Verify contracts on Basescan (if mainnet):");
   console.log(`     npx hardhat verify --network ${hre.network.name} ${tokenAddress}`);
   console.log(`     npx hardhat verify --network ${hre.network.name} ${presaleAddress}`);

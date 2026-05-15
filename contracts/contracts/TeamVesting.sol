@@ -27,7 +27,7 @@ contract TeamVesting is Ownable, ReentrancyGuard {
 
     // ─── State ────────────────────────────────────────────────────────────────
 
-    IERC20 public immutable token;
+    IERC20 public token;
 
     mapping(address => Beneficiary) public beneficiaries;
     address[] public beneficiaryList;
@@ -42,6 +42,7 @@ contract TeamVesting is Ownable, ReentrancyGuard {
 
     event VestingStarted(uint256 vestingStart);
     event Claimed(address indexed beneficiary, uint256 amount);
+    event TokenSet(address indexed token);
 
     // ─── Constructor ──────────────────────────────────────────────────────────
 
@@ -72,6 +73,18 @@ contract TeamVesting is Ownable, ReentrancyGuard {
     }
 
     // ─── Owner ────────────────────────────────────────────────────────────────
+
+    /**
+     * @notice Set the FLZY token address. Can only be called once, after Token deploy.
+     *         Required because deploy ordering: satellite contracts are deployed before
+     *         Token, so token is set to address(0) at construction.
+     */
+    function setToken(address token_) external onlyOwner {
+        require(address(token) == address(0), "Token already set");
+        require(token_ != address(0), "Invalid token address");
+        token = IERC20(token_);
+        emit TokenSet(token_);
+    }
 
     /**
      * @notice Set vesting start. Call with the Unix timestamp (midnight UTC) of the

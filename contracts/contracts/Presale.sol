@@ -30,7 +30,7 @@ contract Presale is Ownable, ReentrancyGuard {
 
     // ─── State ────────────────────────────────────────────────────────────────
 
-    IERC20 public immutable token;
+    IERC20 public token;
 
     Stage[] public stages;
     uint256 public currentStage;
@@ -64,6 +64,7 @@ contract Presale is Ownable, ReentrancyGuard {
     event UnsoldTokensBurned(uint256 amount);
     event EthWithdrawn(address indexed to, uint256 amount);
     event NewPurchase(address indexed buyer, uint256 tokenAmount);
+    event TokenSet(address indexed token);
 
     // ─── Constructor ──────────────────────────────────────────────────────────
 
@@ -96,6 +97,20 @@ contract Presale is Ownable, ReentrancyGuard {
         }
 
         presaleActive = true;
+    }
+
+    // ─── Owner ────────────────────────────────────────────────────────────────
+
+    /**
+     * @notice Set the FLZY token address. Can only be called once, after Token deploy.
+     *         Required because deploy ordering: Presale is deployed before Token, so
+     *         token is set to address(0) at construction.
+     */
+    function setToken(address token_) external onlyOwner {
+        require(address(token) == address(0), "Token already set");
+        require(token_ != address(0), "Invalid token address");
+        token = IERC20(token_);
+        emit TokenSet(token_);
     }
 
     // ─── Modifiers ────────────────────────────────────────────────────────────
