@@ -61,10 +61,13 @@ export function AirdropForm() {
         <h2 className="font-bangers txt-shadow-meme mb-2" style={{ fontSize: "3.5rem", letterSpacing: "3px", color: "#FFD43B" }}>
           FREE AIRDROP
         </h2>
-        <p className="font-fredoka text-lg text-gray-300 mb-8">
+        <p className="font-fredoka text-lg text-gray-300 mb-3">
           Register your 𝕏 account and Base wallet to receive a{" "}
           <span className="txt-yellow font-bold">6-month locked airdrop</span> of $FLZY tokens.
         </p>
+        <div className="inline-flex items-center gap-2 bg-black/40 border-2 border-meme-yellow rounded-full px-4 py-1.5 mb-8">
+          <span className="text-meme-yellow font-bangers text-lg" style={{ letterSpacing: "1px" }}>🏆 FIRST 10,000 FOLLOWERS ONLY</span>
+        </div>
 
         {status === "success" ? (
           <div className="meme-card p-8" style={{ borderColor: "#00E676", borderWidth: 3 }}>
@@ -75,9 +78,9 @@ export function AirdropForm() {
             </p>
             <div className="bg-black/40 rounded-lg px-4 py-3 text-left space-y-1">
               <p className="font-fredoka text-xs text-gray-400">
-                ⚠️ <span className="text-meme-yellow font-bold">Follower check at distribution:</span> We will verify that you follow{" "}
+                ⚠️ <span className="text-meme-yellow font-bold">Follower check at distribution:</span> Only the first 10,000 followers of{" "}
                 <a href="https://x.com/flozymeme" target="_blank" rel="noopener noreferrer" className="text-sky-400 underline">@flozymeme</a>{" "}
-                before sending tokens. Accounts that don't follow will be removed from the list.
+                who registered will receive the airdrop. Accounts not following at distribution time will be removed.
               </p>
               <p className="font-fredoka text-xs text-gray-500 mt-1">
                 Tokens locked 6 months after distribution · Presale ends Aug 2026
@@ -166,7 +169,7 @@ export function AirdropForm() {
             </button>
 
             <p className="font-fredoka text-xs text-gray-500 text-center">
-              One registration per wallet · Follower verification at distribution · Tokens locked 6 months
+              First 10,000 followers · One registration per wallet · Tokens locked 6 months
             </p>
           </form>
         )}
