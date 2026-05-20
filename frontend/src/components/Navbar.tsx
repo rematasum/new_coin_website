@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { WalletButton } from "./WalletButton";
+import { AddTokenButton } from "./AddTokenButton";
 
 export function Navbar() {
   return (
@@ -52,7 +53,12 @@ export function Navbar() {
           </a>
         </div>
 
-        <WalletButton />
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:block">
+            <AddTokenButton className="text-xs px-3 py-1.5 border border-meme-yellow/40 rounded-full hover:border-meme-yellow" />
+          </div>
+          <WalletButton />
+        </div>
       </div>
     </nav>
   );

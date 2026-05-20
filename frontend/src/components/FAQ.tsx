@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AddTokenButton } from "./AddTokenButton";
 
 const FAQS = [
   {
@@ -82,7 +83,18 @@ export function FAQ() {
           ))}
         </div>
 
-        <div className="text-center mt-10">
+        {/* Add to wallet card */}
+        <div className="meme-card p-5 mt-4" style={{ borderColor: "#FFD43B", borderWidth: 2 }}>
+          <p className="font-fredoka font-bold text-white text-base mb-1">
+            🪙 How do I add $FLZY to my wallet?
+          </p>
+          <p className="font-fredoka text-gray-300 text-sm leading-relaxed mb-4">
+            After claiming your tokens, click the button below to instantly add $FLZY to MetaMask, Coinbase Wallet, or any EIP-747 compatible wallet — no manual contract address needed.
+          </p>
+          <AddTokenButton className="border border-meme-yellow/60 rounded-lg py-2 px-4 hover:border-meme-yellow hover:text-meme-yellow" />
+        </div>
+
+        <div className="text-center mt-8">
           <p className="font-fredoka text-gray-400 text-sm mb-3">Still have questions?</p>
           <a href="https://x.com/flozymeme" target="_blank" rel="noopener noreferrer"
              className="btn-meme-blue text-base px-6 py-3">

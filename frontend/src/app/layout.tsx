@@ -5,10 +5,15 @@ import { Providers } from "@/lib/providers";
 export const metadata: Metadata = {
   title: "FLOZY ($FLZY) — Biggest Meme on Base",
   description: "Join the FLOZY presale on Base network. Buy $FLZY with ETH. 5 stages, early buyers get up to 25% instant unlock.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
   openGraph: {
     title: "FLOZY ($FLZY) — Biggest Meme on Base",
     description: "Join the FLOZY presale. 5 stages. 250M tokens. Early buyers get the best price.",
     type: "website",
+    images: ["/logo.png"],
   },
 };
 
