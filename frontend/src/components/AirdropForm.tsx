@@ -69,6 +69,23 @@ export function AirdropForm() {
           <span className="text-meme-yellow font-bangers text-lg" style={{ letterSpacing: "1px" }}>🏆 FIRST 10,000 FOLLOWERS ONLY</span>
         </div>
 
+        {/* Follow verification notice — always visible above the form */}
+        {status !== "success" && (
+          <div className="mb-6 rounded-xl px-4 py-3 text-left flex gap-3 items-start"
+            style={{ background: "rgba(255,180,0,0.08)", border: "2px solid #FFD43B" }}>
+            <span className="text-2xl flex-shrink-0">📢</span>
+            <div>
+              <p className="font-fredoka font-bold text-meme-yellow text-sm mb-0.5">Follow verification at distribution</p>
+              <p className="font-fredoka text-gray-300 text-xs leading-relaxed">
+                Before tokens are sent, we will verify that every registered wallet's X account still follows{" "}
+                <a href="https://x.com/flozymeme" target="_blank" rel="noopener noreferrer"
+                  className="text-sky-400 underline font-bold">@flozymeme</a>.{" "}
+                Accounts not following at that time will be removed from the airdrop list.
+              </p>
+            </div>
+          </div>
+        )}
+
         {status === "success" ? (
           <div className="meme-card p-8" style={{ borderColor: "#00E676", borderWidth: 3 }}>
             <div className="text-6xl mb-4">🎉</div>
@@ -76,13 +93,15 @@ export function AirdropForm() {
             <p className="font-fredoka text-gray-300 text-sm mb-3">
               Your registration has been received.
             </p>
-            <div className="bg-black/40 rounded-lg px-4 py-3 text-left space-y-1">
-              <p className="font-fredoka text-xs text-gray-400">
-                ⚠️ <span className="text-meme-yellow font-bold">Follower check at distribution:</span> Only the first 10,000 followers of{" "}
-                <a href="https://x.com/flozymeme" target="_blank" rel="noopener noreferrer" className="text-sky-400 underline">@flozymeme</a>{" "}
-                who registered will receive the airdrop. Accounts not following at distribution time will be removed.
+            <div className="rounded-xl px-4 py-3 text-left"
+              style={{ background: "rgba(255,180,0,0.08)", border: "2px solid #FFD43B" }}>
+              <p className="font-fredoka font-bold text-meme-yellow text-sm mb-1">📢 Remember: Follow verification at distribution</p>
+              <p className="font-fredoka text-gray-300 text-xs leading-relaxed">
+                Only the first 10,000 followers of{" "}
+                <a href="https://x.com/flozymeme" target="_blank" rel="noopener noreferrer" className="text-sky-400 underline font-bold">@flozymeme</a>{" "}
+                who registered will receive tokens. Make sure you're still following when distribution happens.
               </p>
-              <p className="font-fredoka text-xs text-gray-500 mt-1">
+              <p className="font-fredoka text-xs text-gray-500 mt-2">
                 Tokens locked 6 months after distribution · Presale ends Aug 2026
               </p>
             </div>
