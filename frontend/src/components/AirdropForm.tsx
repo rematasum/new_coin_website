@@ -29,12 +29,14 @@ export function AirdropForm() {
         console.log("Airdrop signup:", payload);
         await new Promise((r) => setTimeout(r, 800));
       } else {
-        const res = await fetch(WEBHOOK_URL, {
+        // no-cors: skips preflight — Google Apps Script doesn't handle OPTIONS.
+        // Response is opaque so we can't check res.ok; assume success if no throw.
+        await fetch(WEBHOOK_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain" },
           body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error();
       }
       setStatus("success");
     } catch {
