@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt, useWatchAsset } from "wagmi";
+import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther, formatEther, zeroAddress } from "viem";
 import { formatMonthlyVestingDates } from "@/lib/format";
-import { PRESALE_ADDRESS, PRESALE_ABI, TOKEN_ADDRESS } from "@/config/contracts";
+import { PRESALE_ADDRESS, PRESALE_ABI } from "@/config/contracts";
 import { targetChain } from "@/config/wagmi";
 import { formatTokenAmount, formatCountdown } from "@/lib/format";
 import { WalletButton } from "./WalletButton";
@@ -74,7 +74,6 @@ export function PresaleWidget() {
 
   const { writeContract: writeClaim, data: claimTxHash, isPending: isClaiming } = useWriteContract();
   const { isLoading: isClaimConfirming, isSuccess: isClaimSuccess } = useWaitForTransactionReceipt({ hash: claimTxHash });
-  const { watchAsset } = useWatchAsset();
 
   useEffect(() => {
     if (isBuySuccess) {
@@ -87,19 +86,6 @@ export function PresaleWidget() {
     if (isClaimSuccess) {
       refetch(); refetchClaimable();
       notifyWebhook({ type: "claim", wallet: address, amount: formatEther(claimableAmount), txHash: claimTxHash });
-      // Delay so MetaMask closes the TX confirmation popup before showing the
-      // "Add token?" prompt — otherwise they stack and the user dismisses both.
-      setTimeout(() => {
-        watchAsset({
-          type: "ERC20",
-          options: {
-            address: TOKEN_ADDRESS,
-            symbol: "FLZY",
-            decimals: 18,
-            image: typeof window !== "undefined" ? `${window.location.origin}/logo.png` : "",
-          },
-        });
-      }, 1500);
     }
   }, [isClaimSuccess]);
 
@@ -266,11 +252,14 @@ export function PresaleWidget() {
           </div>
         )}
 
-        {/* Vesting link */}
-        <button onClick={() => setShowVesting(true)}
-          className="w-full mt-3 font-fredoka text-xs text-gray-500 hover:text-sky-base transition-colors underline underline-offset-2">
-          📋 View your vesting schedule
-        </button>
+        {/* Always-visible add token + vesting links */}
+        <div className="mt-3 flex flex-col gap-1">
+          <AddTokenButton />
+          <button onClick={() => setShowVesting(true)}
+            className="w-full font-fredoka text-xs text-gray-500 hover:text-sky-base transition-colors underline underline-offset-2">
+            📋 View your vesting schedule
+          </button>
+        </div>
       </div>
 
       {showVesting && <VestingModal onClose={() => setShowVesting(false)} vestingStart={vestingStart ?? 0n} />}
