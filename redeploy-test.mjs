@@ -58,10 +58,16 @@ console.log("\n✅ frontend/.env.local updated");
 // 4. Optional: start team vesting
 if (withVesting) {
   console.log("\n⏳ Starting team vesting...");
-  execSync("npx hardhat run scripts/start-vesting.js --network base_sepolia", {
-    cwd: CONTRACTS_DIR,
-    stdio: "inherit",
-  });
+  try {
+    execSync("npx hardhat run scripts/start-vesting.js --network base_sepolia", {
+      cwd: CONTRACTS_DIR,
+      stdio: "inherit",
+    });
+  } catch (err) {
+    // Windows: Hardhat exits with non-zero code after successful execution due to
+    // async handle cleanup (UV_HANDLE_CLOSING). Tx is already confirmed on-chain.
+    if (err.status !== 3221226505) throw err;
+  }
   console.log("✅ Vesting started");
 }
 

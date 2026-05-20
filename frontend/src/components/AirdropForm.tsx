@@ -9,16 +9,18 @@ function isValidEthAddress(v: string) { return /^0x[0-9a-fA-F]{40}$/.test(v); }
 function isValidTwitter(v: string)    { return /^@?[A-Za-z0-9_]{1,15}$/.test(v); }
 
 export function AirdropForm() {
-  const [twitter, setTwitter] = useState("");
-  const [wallet, setWallet]   = useState("");
-  const [status, setStatus]   = useState<"idle"|"loading"|"success"|"error">("idle");
-  const [errMsg, setErrMsg]   = useState("");
+  const [twitter, setTwitter]     = useState("");
+  const [wallet, setWallet]       = useState("");
+  const [followsUs, setFollowsUs] = useState(false);
+  const [status, setStatus]       = useState<"idle"|"loading"|"success"|"error">("idle");
+  const [errMsg, setErrMsg]       = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrMsg("");
     if (!isValidTwitter(twitter)) { setErrMsg("Invalid Twitter/X username."); return; }
     if (!isValidEthAddress(wallet)) { setErrMsg("Invalid Base wallet address (must be 0x...)."); return; }
+    if (!followsUs) { setErrMsg("You must follow @flozymeme on X to register."); return; }
     setStatus("loading");
     try {
       const tw = twitter.startsWith("@") ? twitter : "@" + twitter;
@@ -68,9 +70,19 @@ export function AirdropForm() {
           <div className="meme-card p-8" style={{ borderColor: "#00E676", borderWidth: 3 }}>
             <div className="text-6xl mb-4">🎉</div>
             <h3 className="font-bangers text-3xl txt-green mb-2" style={{ letterSpacing: "2px" }}>YOU'RE IN!</h3>
-            <p className="font-fredoka text-gray-400 text-sm">
-              Airdrop tokens will be distributed after the presale. Tokens locked for 6 months.
+            <p className="font-fredoka text-gray-300 text-sm mb-3">
+              Your registration has been received.
             </p>
+            <div className="bg-black/40 rounded-lg px-4 py-3 text-left space-y-1">
+              <p className="font-fredoka text-xs text-gray-400">
+                ⚠️ <span className="text-meme-yellow font-bold">Follower check at distribution:</span> We will verify that you follow{" "}
+                <a href="https://x.com/flozymeme" target="_blank" rel="noopener noreferrer" className="text-sky-400 underline">@flozymeme</a>{" "}
+                before sending tokens. Accounts that don't follow will be removed from the list.
+              </p>
+              <p className="font-fredoka text-xs text-gray-500 mt-1">
+                Tokens locked 6 months after distribution · Presale ends Aug 2026
+              </p>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="meme-card p-6 space-y-4 text-left">
@@ -105,6 +117,43 @@ export function AirdropForm() {
               />
             </div>
 
+            {/* Follow requirement */}
+            <div className="bg-black/30 rounded-lg p-3 space-y-2" style={{ border: "2px solid #1B5A9C" }}>
+              <div className="flex items-start gap-3">
+                <input
+                  id="follows-check"
+                  type="checkbox"
+                  checked={followsUs}
+                  onChange={(e) => setFollowsUs(e.target.checked)}
+                  className="mt-1 w-4 h-4 accent-yellow-400 cursor-pointer flex-shrink-0"
+                />
+                <label htmlFor="follows-check" className="font-fredoka text-sm text-gray-300 cursor-pointer leading-snug">
+                  I follow{" "}
+                  <a
+                    href="https://x.com/flozymeme"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-meme-yellow font-bold underline underline-offset-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    @flozymeme
+                  </a>{" "}
+                  on X (required for airdrop)
+                </label>
+              </div>
+              {!followsUs && (
+                <a
+                  href="https://x.com/intent/follow?screen_name=flozymeme"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-center font-fredoka font-bold text-sm py-2 rounded-lg transition-colors"
+                  style={{ background: "#1DA1F2", color: "#fff" }}
+                >
+                  Follow @flozymeme →
+                </a>
+              )}
+            </div>
+
             {errMsg && <p className="font-fredoka text-red-400 text-sm">{errMsg}</p>}
 
             <button type="submit" disabled={status === "loading"} className="btn-meme-yellow w-full py-4 text-xl">
@@ -117,7 +166,7 @@ export function AirdropForm() {
             </button>
 
             <p className="font-fredoka text-xs text-gray-500 text-center">
-              One registration per wallet · Tokens locked 6 months after distribution
+              One registration per wallet · Follower verification at distribution · Tokens locked 6 months
             </p>
           </form>
         )}
