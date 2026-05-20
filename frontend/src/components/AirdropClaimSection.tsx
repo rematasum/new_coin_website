@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useWatchAsset } from "wagmi";
 import { zeroAddress } from "viem";
-import { AIRDROP_VAULT_ADDRESS, AIRDROP_VAULT_ABI } from "@/config/contracts";
+import { AIRDROP_VAULT_ADDRESS, AIRDROP_VAULT_ABI, TOKEN_ADDRESS } from "@/config/contracts";
 import { targetChain } from "@/config/wagmi";
 import { formatTokenAmount } from "@/lib/format";
 import { WalletButton } from "./WalletButton";
@@ -42,12 +42,22 @@ export function AirdropClaimSection() {
 
   const { writeContract: writeClaim, data: claimTxHash, isPending: isClaiming } = useWriteContract();
   const { isLoading: isClaimConfirming, isSuccess: isClaimSuccess } = useWaitForTransactionReceipt({ hash: claimTxHash });
+  const { watchAsset } = useWatchAsset();
 
   useEffect(() => {
     if (isClaimSuccess) {
       refetchAlloc();
       refetchClaimable();
       notifyWebhook({ type: "airdrop_claim", wallet: address, txHash: claimTxHash });
+      watchAsset({
+        type: "ERC20",
+        options: {
+          address: TOKEN_ADDRESS,
+          symbol: "FLZY",
+          decimals: 18,
+          image: typeof window !== "undefined" ? `${window.location.origin}/logo.png` : "",
+        },
+      });
     }
   }, [isClaimSuccess]);
 

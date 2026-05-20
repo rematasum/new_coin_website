@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt, useWatchAsset } from "wagmi";
 import { parseEther, formatEther, zeroAddress } from "viem";
 import { formatMonthlyVestingDates } from "@/lib/format";
-import { PRESALE_ADDRESS, PRESALE_ABI } from "@/config/contracts";
+import { PRESALE_ADDRESS, PRESALE_ABI, TOKEN_ADDRESS } from "@/config/contracts";
 import { targetChain } from "@/config/wagmi";
 import { formatTokenAmount, formatCountdown } from "@/lib/format";
 import { WalletButton } from "./WalletButton";
@@ -74,6 +74,7 @@ export function PresaleWidget() {
 
   const { writeContract: writeClaim, data: claimTxHash, isPending: isClaiming } = useWriteContract();
   const { isLoading: isClaimConfirming, isSuccess: isClaimSuccess } = useWaitForTransactionReceipt({ hash: claimTxHash });
+  const { watchAsset } = useWatchAsset();
 
   useEffect(() => {
     if (isBuySuccess) {
@@ -86,6 +87,15 @@ export function PresaleWidget() {
     if (isClaimSuccess) {
       refetch(); refetchClaimable();
       notifyWebhook({ type: "claim", wallet: address, amount: formatEther(claimableAmount), txHash: claimTxHash });
+      watchAsset({
+        type: "ERC20",
+        options: {
+          address: TOKEN_ADDRESS,
+          symbol: "FLZY",
+          decimals: 18,
+          image: typeof window !== "undefined" ? `${window.location.origin}/logo.png` : "",
+        },
+      });
     }
   }, [isClaimSuccess]);
 
