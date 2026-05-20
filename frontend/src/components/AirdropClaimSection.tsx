@@ -7,6 +7,8 @@ import { AIRDROP_VAULT_ADDRESS, AIRDROP_VAULT_ABI } from "@/config/contracts";
 import { targetChain } from "@/config/wagmi";
 import { formatTokenAmount } from "@/lib/format";
 import { WalletButton } from "./WalletButton";
+import { AddTokenButton } from "./AddTokenButton";
+import { notifyWebhook } from "@/lib/notify";
 
 const airdropContract = { address: AIRDROP_VAULT_ADDRESS, abi: AIRDROP_VAULT_ABI } as const;
 
@@ -45,6 +47,7 @@ export function AirdropClaimSection() {
     if (isClaimSuccess) {
       refetchAlloc();
       refetchClaimable();
+      notifyWebhook({ type: "airdrop_claim", wallet: address, txHash: claimTxHash });
     }
   }, [isClaimSuccess]);
 
@@ -137,7 +140,10 @@ export function AirdropClaimSection() {
           )}
 
           {isClaimSuccess && (
-            <p className="text-center font-fredoka text-sm text-meme-green">✅ Airdrop claimed successfully!</p>
+            <>
+              <p className="text-center font-fredoka text-sm text-meme-green">✅ Airdrop claimed successfully!</p>
+              <AddTokenButton />
+            </>
           )}
         </div>
       ) : (

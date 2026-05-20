@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { notifyWebhook } from "@/lib/notify";
 
 const WEBHOOK_URL = process.env.NEXT_PUBLIC_SHEETS_WEBHOOK_URL ?? "";
 
@@ -21,14 +22,15 @@ export function AirdropForm() {
     setStatus("loading");
     try {
       const tw = twitter.startsWith("@") ? twitter : "@" + twitter;
+      const payload = { type: "airdrop", twitter: tw, wallet, timestamp: new Date().toISOString() };
       if (!WEBHOOK_URL) {
-        console.log("Airdrop signup:", { twitter: tw, wallet, timestamp: new Date().toISOString() });
+        console.log("Airdrop signup:", payload);
         await new Promise((r) => setTimeout(r, 800));
       } else {
         const res = await fetch(WEBHOOK_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ twitter: tw, wallet, timestamp: new Date().toISOString() }),
+          body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error();
       }

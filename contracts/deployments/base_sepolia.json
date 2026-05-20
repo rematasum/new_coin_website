@@ -1,13 +1,13 @@
 {
   "network": "base_sepolia",
   "chainId": "84532",
-  "tokenAddress": "0x3F77948A3f06b059E7162C403D7EDeb9C9C972F6",
-  "presaleAddress": "0xA79853b900ABbEcD6C6139CB8eFa84CdE8D052DA",
-  "teamVestingAddress": "0x881AA41c2bff05dd7CbBd14D71051f1198afBEa5",
-  "airdropVaultAddress": "0x6851290973D30FC4bf226Ea9044f818187825053",
+  "tokenAddress": "0xec41Ed3dc638f8d20c4da9A04b04059CeE64d58D",
+  "presaleAddress": "0x31704306a11cEDdA1b9A3Cf10b5bEd3f44312f58",
+  "teamVestingAddress": "0xEeFF72510a01a0FCc49c32c54641EC575DF2D48C",
+  "airdropVaultAddress": "0x6b43fCc42c35080BdeA80771E7FB653155c097B1",
   "liquidityAddress": "0xCE0e20488Da66DE8ce8080412f9094d801f617C4",
   "deployer": "0x0773A2064Ee839ec5f25cfE090a08b57B87569c6",
-  "deployedAt": "2026-05-15T08:48:02.765Z",
+  "deployedAt": "2026-05-15T17:30:27.966Z",
   "config": {
     "tokenName": "Flozy",
     "tokenSymbol": "FLZY",

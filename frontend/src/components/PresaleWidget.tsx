@@ -10,6 +10,8 @@ import { formatTokenAmount, formatCountdown } from "@/lib/format";
 import { WalletButton } from "./WalletButton";
 import { StageTable } from "./StageTable";
 import { VestingModal } from "./VestingModal";
+import { AddTokenButton } from "./AddTokenButton";
+import { notifyWebhook } from "@/lib/notify";
 
 const presaleContract = { address: PRESALE_ADDRESS, abi: PRESALE_ABI } as const;
 
@@ -18,6 +20,8 @@ export function PresaleWidget() {
   const [ethInput, setEthInput] = useState("");
   const [countdown, setCountdown] = useState("");
   const [showVesting, setShowVesting] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => setIsMounted(true), []);
 
   const isCorrectChain = chainId === targetChain.id;
 
@@ -72,8 +76,18 @@ export function PresaleWidget() {
   const { isLoading: isClaimConfirming, isSuccess: isClaimSuccess } = useWaitForTransactionReceipt({ hash: claimTxHash });
 
   useEffect(() => {
-    if (isBuySuccess || isClaimSuccess) { refetch(); refetchClaimable(); setEthInput(""); }
-  }, [isBuySuccess, isClaimSuccess]);
+    if (isBuySuccess) {
+      refetch(); refetchClaimable(); setEthInput("");
+      notifyWebhook({ type: "buy", wallet: address, ethAmount: ethInput, txHash: buyTxHash });
+    }
+  }, [isBuySuccess]);
+
+  useEffect(() => {
+    if (isClaimSuccess) {
+      refetch(); refetchClaimable();
+      notifyWebhook({ type: "claim", wallet: address, amount: formatEther(claimableAmount), txHash: claimTxHash });
+    }
+  }, [isClaimSuccess]);
 
 
   useEffect(() => {
@@ -92,8 +106,8 @@ export function PresaleWidget() {
     ? Math.min(Number(stageInfo.tokensSold * 10000n / stageInfo.tokenAllocation) / 100, 100) : 0;
 
   const claimableAmount: bigint = (claimable as bigint) ?? 0n;
-  const canBuy   = isConnected && isCorrectChain && presaleActive && !isEnded && ethInputWei > 0n;
-  const canClaim = isConnected && isCorrectChain && isEnded && claimableAmount > 0n;
+  const canBuy   = isMounted && isConnected && isCorrectChain && presaleActive && !isEnded && ethInputWei > 0n;
+  const canClaim = isMounted && isConnected && isCorrectChain && isEnded && claimableAmount > 0n;
   const stageIdx = currentStage !== undefined ? Number(currentStage) : 0;
 
   return (
@@ -185,11 +199,7 @@ export function PresaleWidget() {
               </div>
             )}
 
-            {!isConnected ? (
-              <div className="flex justify-center">
-                <WalletButton />
-              </div>
-            ) : (
+            {isMounted && isConnected ? (
               <button
                 onClick={() => { if (!canBuy) return; writeBuy({ ...presaleContract, functionName: "buy", args: [], value: ethInputWei }); }}
                 disabled={!canBuy || isBuying || isBuyConfirming}
@@ -202,6 +212,10 @@ export function PresaleWidget() {
                   </span>
                 ) : "🚀 BUY $FLZY NOW"}
               </button>
+            ) : (
+              <div className="flex justify-center">
+                <WalletButton />
+              </div>
             )}
 
             {isBuySuccess && <p className="text-center font-fredoka text-sm text-meme-green">✅ Purchase confirmed! Claim after presale ends.</p>}
@@ -217,7 +231,7 @@ export function PresaleWidget() {
               <p className="font-fredoka text-xs text-gray-500 mt-1">Instant unlock + vested portion</p>
             </div>
 
-            {!isConnected ? <WalletButton /> : (
+            {isMounted && isConnected ? (
               <button
                 onClick={() => { if (canClaim) writeClaim({ ...presaleContract, functionName: "claim" }); }}
                 disabled={!canClaim || isClaiming || isClaimConfirming}
@@ -225,9 +239,16 @@ export function PresaleWidget() {
               >
                 {isClaiming || isClaimConfirming ? "Claiming…" : "💎 CLAIM $FLZY"}
               </button>
+            ) : (
+              <WalletButton />
             )}
 
-            {isClaimSuccess && <p className="text-center font-fredoka text-sm text-meme-green">✅ Tokens claimed successfully!</p>}
+            {isClaimSuccess && (
+              <>
+                <p className="text-center font-fredoka text-sm text-meme-green">✅ Tokens claimed successfully!</p>
+                <AddTokenButton />
+              </>
+            )}
           </div>
         )}
 

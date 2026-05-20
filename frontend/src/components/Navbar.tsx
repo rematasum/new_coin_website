@@ -12,7 +12,7 @@ export function Navbar() {
         <div className="flex items-center gap-2">
           <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-meme-yellow"
                style={{ boxShadow: "2px 2px 0 #000" }}>
-            <Image src="/logo.png" alt="Flozy" fill style={{ objectFit: "cover" }} />
+            <Image src="/logo.png" alt="Flozy" fill sizes="40px" style={{ objectFit: "cover" }} />
           </div>
           <span className="font-bangers text-2xl txt-shadow-sm"
                 style={{ color: "#FFD43B", letterSpacing: "3px" }}>
