@@ -112,15 +112,15 @@ export function AirdropForm() {
               <label className="block font-fredoka font-bold text-meme-yellow mb-1.5">
                 𝕏 Twitter / X Username
               </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold txt-yellow">@</span>
+              <div className="flex items-center meme-input p-0 overflow-hidden">
+                <span className="font-bold txt-yellow px-3 py-3 border-r border-white/10 select-none">@</span>
                 <input
                   type="text"
                   value={twitter.startsWith("@") ? twitter.slice(1) : twitter}
                   onChange={(e) => setTwitter(e.target.value)}
                   placeholder="flozymeme"
                   required
-                  className="meme-input pl-8"
+                  className="flex-1 bg-transparent px-3 py-3 outline-none font-fredoka text-white placeholder-gray-500"
                 />
               </div>
             </div>
