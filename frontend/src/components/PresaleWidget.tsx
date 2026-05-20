@@ -87,15 +87,19 @@ export function PresaleWidget() {
     if (isClaimSuccess) {
       refetch(); refetchClaimable();
       notifyWebhook({ type: "claim", wallet: address, amount: formatEther(claimableAmount), txHash: claimTxHash });
-      watchAsset({
-        type: "ERC20",
-        options: {
-          address: TOKEN_ADDRESS,
-          symbol: "FLZY",
-          decimals: 18,
-          image: typeof window !== "undefined" ? `${window.location.origin}/logo.png` : "",
-        },
-      });
+      // Delay so MetaMask closes the TX confirmation popup before showing the
+      // "Add token?" prompt — otherwise they stack and the user dismisses both.
+      setTimeout(() => {
+        watchAsset({
+          type: "ERC20",
+          options: {
+            address: TOKEN_ADDRESS,
+            symbol: "FLZY",
+            decimals: 18,
+            image: typeof window !== "undefined" ? `${window.location.origin}/logo.png` : "",
+          },
+        });
+      }, 1500);
     }
   }, [isClaimSuccess]);
 
