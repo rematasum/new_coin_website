@@ -14,36 +14,73 @@ const VESTING_MONTHS = 24n;
 const INSTANT_BPS    = 2500n; // 25% instant for all
 
 async function deploy() {
-  const [owner, team, sp1, sp2, sp3, sp4, sp5, other] = await hre.ethers.getSigners();
-
-  const Token = await hre.ethers.getContractFactory("Token");
-  const token = await Token.deploy("Flozy", "FLZY", TOTAL_SUPPLY, owner.address);
+  const [owner, team, sp1, sp2, sp3, sp4, sp5, other, liquidity] = await hre.ethers.getSigners();
 
   const addresses   = [team.address, sp1.address, sp2.address, sp3.address, sp4.address, sp5.address];
   const amounts     = [TEAM_AMOUNT, SPONSOR_AMOUNT, SPONSOR_AMOUNT, SPONSOR_AMOUNT, SPONSOR_AMOUNT, SPONSOR_AMOUNT];
   const instantBps  = [INSTANT_BPS, INSTANT_BPS, INSTANT_BPS, INSTANT_BPS, INSTANT_BPS, INSTANT_BPS];
 
+  // vestingStart is fixed at deploy: 5 days in the future (simulates July 15 on mainnet)
+  const vestingStart = BigInt(await time.latest()) + 86400n * 5n;
+
+  // Deploy satellites with token=address(0)
   const TeamVesting = await hre.ethers.getContractFactory("TeamVesting");
   const tv = await TeamVesting.deploy(
-    await token.getAddress(),
+    hre.ethers.ZeroAddress,
     addresses,
     amounts,
     instantBps,
+    vestingStart,
     owner.address
   );
 
-  await token.transfer(await tv.getAddress(), TOTAL_VESTING);
+  // Presale and AirdropVault are needed for Token constructor; use minimal valid configs
+  const deadline = BigInt(await time.latest()) + 86400n * 30n;
+  const Presale = await hre.ethers.getContractFactory("Presale");
+  const presale = await Presale.deploy(
+    hre.ethers.ZeroAddress,
+    0n, // startTime = 0 (immediate)
+    deadline,
+    [hre.ethers.parseEther("0.001")],
+    [hre.ethers.parseEther("1000")],
+    [2500n],
+    owner.address
+  );
 
-  return { token, tv, owner, team, sp1, sp2, sp3, sp4, sp5, other };
-}
+  const fixedUnlock = BigInt(await time.latest()) + 86400n * 180n;
+  const AirdropVault = await hre.ethers.getContractFactory("AirdropVault");
+  const airdrop = await AirdropVault.deploy(hre.ethers.ZeroAddress, fixedUnlock, owner.address);
 
-// Start vesting at a future timestamp (e.g. next month's 15th approximation)
-async function deployAndStart() {
-  const ctx = await deploy();
-  const firstFifteenth = BigInt(await time.latest()) + 86400n * 5n; // 5 days from now
-  await ctx.tv.connect(ctx.owner).startVesting(firstFifteenth);
-  ctx.vestingStart = firstFifteenth;
-  return ctx;
+  const Staking = await hre.ethers.getContractFactory("Staking");
+  const staking = await Staking.deploy(
+    hre.ethers.ZeroAddress,
+    await presale.getAddress(),
+    hre.ethers.parseEther("150000000"),
+    owner.address
+  );
+
+  const PRESALE_A = hre.ethers.parseEther("250000000");
+  const TEAM_A    = hre.ethers.parseEther("250000000");
+  const AIRDROP_A = hre.ethers.parseEther("100000000");
+  const LIQ_A     = hre.ethers.parseEther("250000000");
+  const STAKING_A = hre.ethers.parseEther("150000000");
+  const Token = await hre.ethers.getContractFactory("Token");
+  const token = await Token.deploy(
+    "Flozy",
+    "FLZY",
+    TOTAL_SUPPLY,
+    await presale.getAddress(),
+    await tv.getAddress(),
+    await airdrop.getAddress(),
+    liquidity.address,
+    await staking.getAddress(),
+    PRESALE_A, TEAM_A, AIRDROP_A, LIQ_A, STAKING_A,
+    owner.address
+  );
+
+  await tv.connect(owner).setToken(await token.getAddress());
+
+  return { token, tv, owner, team, sp1, sp2, sp3, sp4, sp5, other, vestingStart };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,53 +106,25 @@ describe("TeamVesting", () => {
       expect(await token.balanceOf(await tv.getAddress())).to.equal(TOTAL_VESTING);
     });
 
-    it("vestingActive is false before startVesting", async () => {
+    it("vestingActive is true after deploy", async () => {
       const { tv } = await deploy();
-      expect(await tv.vestingActive()).to.be.false;
-    });
-  });
-
-  describe("startVesting", () => {
-    it("sets vestingStart and marks active", async () => {
-      const { tv, owner } = await deploy();
-      const ts = BigInt(await time.latest()) + 86400n;
-      await tv.connect(owner).startVesting(ts);
-      expect(await tv.vestingStart()).to.equal(ts);
       expect(await tv.vestingActive()).to.be.true;
     });
 
-    it("reverts if timestamp is in the past", async () => {
-      const { tv, owner } = await deploy();
-      const past = BigInt(await time.latest()) - 1n;
-      await expect(tv.connect(owner).startVesting(past)).to.be.revertedWith("Must be in future");
-    });
-
-    it("reverts if called twice", async () => {
-      const { tv, owner } = await deployAndStart();
-      await expect(tv.connect(owner).startVesting(BigInt(await time.latest()) + 86400n))
-        .to.be.revertedWith("Already started");
-    });
-
-    it("reverts if called by non-owner", async () => {
-      const { tv, team } = await deploy();
-      await expect(tv.connect(team).startVesting(BigInt(await time.latest()) + 86400n))
-        .to.be.revertedWithCustomError(tv, "OwnableUnauthorizedAccount");
+    it("vestingStart is set at deploy time", async () => {
+      const { tv, vestingStart } = await deploy();
+      expect(await tv.vestingStart()).to.equal(vestingStart);
     });
   });
 
   describe("claim", () => {
-    it("reverts if vesting not started", async () => {
-      const { tv, team } = await deploy();
-      await expect(tv.connect(team).claim()).to.be.revertedWith("Vesting not started");
-    });
-
     it("reverts for non-beneficiary", async () => {
-      const { tv, other } = await deployAndStart();
+      const { tv, other } = await deploy();
       await expect(tv.connect(other).claim()).to.be.revertedWith("Not a beneficiary");
     });
 
     it("before vestingStart: only 25% instant is claimable", async () => {
-      const { tv, token, team } = await deployAndStart();
+      const { tv, token, team } = await deploy();
       // vestingStart is 5 days in the future — instant unlock available immediately
       const expectedInstant = (TEAM_AMOUNT * INSTANT_BPS) / 10000n;
       expect(await tv.getClaimableNow(team.address)).to.equal(expectedInstant);
@@ -124,7 +133,7 @@ describe("TeamVesting", () => {
     });
 
     it("after 1 month: instant + 1/24 of vesting amount claimable", async () => {
-      const { tv, token, team, vestingStart } = await deployAndStart();
+      const { tv, token, team, vestingStart } = await deploy();
       await time.increaseTo(Number(vestingStart) + Number(MONTH));
 
       await tv.connect(team).claim();
@@ -135,7 +144,7 @@ describe("TeamVesting", () => {
     });
 
     it("after 12 months: instant + 12/24 of vesting amount claimable", async () => {
-      const { tv, token, sp1, vestingStart } = await deployAndStart();
+      const { tv, token, sp1, vestingStart } = await deploy();
       await time.increaseTo(Number(vestingStart) + Number(MONTH * 12n));
 
       await tv.connect(sp1).claim();
@@ -146,7 +155,7 @@ describe("TeamVesting", () => {
     });
 
     it("after 24 months: 100% claimable", async () => {
-      const { tv, token, team, vestingStart } = await deployAndStart();
+      const { tv, token, team, vestingStart } = await deploy();
       await time.increaseTo(Number(vestingStart) + Number(MONTH * VESTING_MONTHS));
 
       await tv.connect(team).claim();
@@ -154,7 +163,7 @@ describe("TeamVesting", () => {
     });
 
     it("second claim only gets newly vested tokens", async () => {
-      const { tv, token, team, vestingStart } = await deployAndStart();
+      const { tv, token, team, vestingStart } = await deploy();
 
       // Month 1
       await time.increaseTo(Number(vestingStart) + Number(MONTH));
@@ -171,7 +180,7 @@ describe("TeamVesting", () => {
     });
 
     it("all 6 beneficiaries can claim independently", async () => {
-      const { tv, token, team, sp1, sp2, sp3, sp4, sp5, vestingStart } = await deployAndStart();
+      const { tv, token, team, sp1, sp2, sp3, sp4, sp5, vestingStart } = await deploy();
       await time.increaseTo(Number(vestingStart) + Number(MONTH * VESTING_MONTHS));
 
       await tv.connect(team).claim();
@@ -188,13 +197,15 @@ describe("TeamVesting", () => {
   });
 
   describe("getClaimableNow", () => {
-    it("returns 0 before vesting starts", async () => {
+    it("returns 0 before vestingStart (but after deploy)", async () => {
       const { tv, team } = await deploy();
-      expect(await tv.getClaimableNow(team.address)).to.equal(0n);
+      // vestingStart is 5 days in future; instant unlock is available immediately
+      const expectedInstant = (TEAM_AMOUNT * INSTANT_BPS) / 10000n;
+      expect(await tv.getClaimableNow(team.address)).to.equal(expectedInstant);
     });
 
     it("returns correct amount after 1 month", async () => {
-      const { tv, team, vestingStart } = await deployAndStart();
+      const { tv, team, vestingStart } = await deploy();
       await time.increaseTo(Number(vestingStart) + Number(MONTH));
       const instantAmount = (TEAM_AMOUNT * INSTANT_BPS) / 10000n;
       const vestingAmount = TEAM_AMOUNT - instantAmount;
@@ -205,7 +216,7 @@ describe("TeamVesting", () => {
 
   describe("getBeneficiary view", () => {
     it("returns correct data for team address", async () => {
-      const { tv, team, vestingStart } = await deployAndStart();
+      const { tv, team, vestingStart } = await deploy();
       await time.increaseTo(Number(vestingStart) + Number(MONTH));
 
       const data = await tv.getBeneficiary(team.address);

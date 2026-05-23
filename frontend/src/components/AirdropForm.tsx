@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useReadContract } from "wagmi";
 import { notifyWebhook } from "@/lib/notify";
+import { PRESALE_ADDRESS, PRESALE_ABI, AIRDROP_VAULT_ADDRESS, AIRDROP_VAULT_ABI } from "@/config/contracts";
+
+const AIRDROP_MAX_PARTICIPANTS = 10_000;
 
 const WEBHOOK_URL = process.env.NEXT_PUBLIC_SHEETS_WEBHOOK_URL ?? "";
 
@@ -15,9 +19,28 @@ export function AirdropForm() {
   const [status, setStatus]       = useState<"idle"|"loading"|"success"|"error">("idle");
   const [errMsg, setErrMsg]       = useState("");
 
+  // Form is only open during active presale. After presaleEnded → show closed state.
+  const { data: presaleEnded } = useReadContract({
+    address: PRESALE_ADDRESS,
+    abi: PRESALE_ABI,
+    functionName: "presaleEnded",
+    query: { refetchInterval: 30_000 },
+  });
+
+  const { data: participantCount } = useReadContract({
+    address: AIRDROP_VAULT_ADDRESS,
+    abi: AIRDROP_VAULT_ABI,
+    functionName: "participantCount",
+    query: { refetchInterval: 60_000 },
+  });
+
+  const isCapReached = participantCount !== undefined && Number(participantCount) >= AIRDROP_MAX_PARTICIPANTS;
+  const isClosed = presaleEnded === true || isCapReached;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrMsg("");
+    if (isClosed) { setErrMsg("Registration closed — presale has ended."); return; }
     if (!isValidTwitter(twitter)) { setErrMsg("Invalid Twitter/X username."); return; }
     if (!isValidEthAddress(wallet)) { setErrMsg("Invalid Base wallet address (must be 0x...)."); return; }
     if (!followsUs) { setErrMsg("You must follow @flozymeme on X to register."); return; }
@@ -46,13 +69,15 @@ export function AirdropForm() {
   };
 
   return (
-    <section id="airdrop" className="py-20 relative" style={{ borderTop: "4px solid #1B5A9C" }}>
+    <section id="airdrop" className="py-20 relative" style={{ borderTop: "4px solid #1B5A9C", scrollMarginTop: "110px" }}>
       {/* Section ticker */}
       <div className="bg-black border-y-4 border-meme-yellow overflow-hidden py-2 mb-12">
         <div className="flex whitespace-nowrap" style={{ animation: "marquee 18s linear infinite", width: "max-content" }}>
           {[1,2].map(i => (
             <span key={i} className="font-bangers text-meme-yellow text-base tracking-widest px-8">
-              🎁 FREE AIRDROP OPEN &nbsp;·&nbsp; REGISTER NOW &nbsp;·&nbsp; LIMITED SPOTS &nbsp;·&nbsp; 6-MONTH LOCK &nbsp;·&nbsp;
+              {isClosed
+                ? "🔒 AIRDROP REGISTRATION CLOSED  ·  PRESALE ENDED  ·  CLAIM ON UNLOCK DATE  ·  "
+                : "🎁 FREE AIRDROP OPEN  ·  REGISTER NOW  ·  LIMITED SPOTS  ·  6-MONTH LOCK  ·  "}
             </span>
           ))}
         </div>
@@ -88,7 +113,26 @@ export function AirdropForm() {
           </div>
         )}
 
-        {status === "success" ? (
+        {isClosed ? (
+          <div className="meme-card p-8" style={{ borderColor: "#FFD43B", borderWidth: 3 }}>
+            <div className="text-6xl mb-4">🔒</div>
+            <h3 className="font-bangers text-3xl txt-yellow mb-2" style={{ letterSpacing: "2px" }}>
+              {isCapReached ? "CAPACITY REACHED" : "REGISTRATION CLOSED"}
+            </h3>
+            <p className="font-fredoka text-gray-300 text-sm mb-4">
+              {isCapReached
+                ? "All 10,000 airdrop spots have been filled. Registration is now closed."
+                : "The presale has ended. Airdrop registrations were only accepted during the presale period."}
+            </p>
+            <div className="rounded-xl px-4 py-3 text-left"
+              style={{ background: "rgba(0,188,212,0.08)", border: "2px solid #00BCD4" }}>
+              <p className="font-fredoka font-bold txt-blue text-sm mb-1">📋 Already registered?</p>
+              <p className="font-fredoka text-gray-300 text-xs leading-relaxed">
+                If you registered during the presale, your wallet will be reviewed for follow verification, then added to the airdrop contract by the team. After that, you can see your allocation in the 🎁 AIRDROP claim section above. Tokens unlock 6 months after presale end.
+              </p>
+            </div>
+          </div>
+        ) : status === "success" ? (
           <div className="meme-card p-8" style={{ borderColor: "#00E676", borderWidth: 3 }}>
             <div className="text-6xl mb-4">🎉</div>
             <h3 className="font-bangers text-3xl txt-green mb-2" style={{ letterSpacing: "2px" }}>YOU'RE IN!</h3>
@@ -104,7 +148,7 @@ export function AirdropForm() {
                 who registered will receive tokens. Make sure you're still following when distribution happens.
               </p>
               <p className="font-fredoka text-xs text-gray-500 mt-2">
-                Tokens locked 6 months after distribution · Presale ends Aug 2026
+                Tokens locked 6 months after distribution · Presale ends Jun 2026
               </p>
             </div>
           </div>

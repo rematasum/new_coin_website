@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther, formatEther, zeroAddress } from "viem";
 import { formatMonthlyVestingDates } from "@/lib/format";
-import { PRESALE_ADDRESS, PRESALE_ABI } from "@/config/contracts";
+import { PRESALE_ADDRESS, PRESALE_ABI, STAKING_ADDRESS, STAKING_ABI, STAKE_LOCK_DAYS, STAKE_REWARD_PCT, STAGE_CONFIG } from "@/config/contracts";
 import { targetChain } from "@/config/wagmi";
 import { formatTokenAmount, formatCountdown } from "@/lib/format";
 import { WalletButton } from "./WalletButton";
@@ -75,6 +75,17 @@ export function PresaleWidget() {
   const { writeContract: writeClaim, data: claimTxHash, isPending: isClaiming } = useWriteContract();
   const { isLoading: isClaimConfirming, isSuccess: isClaimSuccess } = useWaitForTransactionReceipt({ hash: claimTxHash });
 
+  const { writeContract: writeClaimStake, data: claimStakeTxHash, isPending: isClaimStaking } = useWriteContract();
+  const { isLoading: isClaimStakeConfirming, isSuccess: isClaimStakeSuccess } = useWaitForTransactionReceipt({ hash: claimStakeTxHash });
+
+  // Stake pool cap — disables Claim & Stake when claimable exceeds pool capacity
+  const { data: maxStakeAmount } = useReadContract({
+    address: STAKING_ADDRESS,
+    abi: STAKING_ABI,
+    functionName: "maxStakeAmount",
+    query: { refetchInterval: 15_000 },
+  });
+
   useEffect(() => {
     if (isBuySuccess) {
       refetch(); refetchClaimable(); setEthInput("");
@@ -88,6 +99,13 @@ export function PresaleWidget() {
       notifyWebhook({ type: "claim", wallet: address, amount: formatEther(claimableAmount), txHash: claimTxHash });
     }
   }, [isClaimSuccess]);
+
+  useEffect(() => {
+    if (isClaimStakeSuccess) {
+      refetch(); refetchClaimable();
+      notifyWebhook({ type: "claim_and_stake", wallet: address, amount: formatEther(claimableAmount), txHash: claimStakeTxHash });
+    }
+  }, [isClaimStakeSuccess]);
 
 
   useEffect(() => {
@@ -106,9 +124,16 @@ export function PresaleWidget() {
     ? Math.min(Number(stageInfo.tokensSold * 10000n / stageInfo.tokenAllocation) / 100, 100) : 0;
 
   const claimableAmount: bigint = (claimable as bigint) ?? 0n;
-  const canBuy   = isMounted && isConnected && isCorrectChain && presaleActive && !isEnded && ethInputWei > 0n;
-  const canClaim = isMounted && isConnected && isCorrectChain && isEnded && claimableAmount > 0n;
-  const stageIdx = currentStage !== undefined ? Number(currentStage) : 0;
+  const maxStake: bigint = (maxStakeAmount as bigint) ?? 0n;
+  const stakePoolFits = claimableAmount > 0n && claimableAmount <= maxStake;
+  const canBuy        = isMounted && isConnected && isCorrectChain && presaleActive && !isEnded && ethInputWei > 0n;
+  const canClaim      = isMounted && isConnected && isCorrectChain && isEnded && claimableAmount > 0n;
+  const canClaimStake = canClaim && stakePoolFits && STAKING_ADDRESS !== "0x0000000000000000000000000000000000000000";
+  // currentStage can equal stageCount (e.g. 5) once the presale auto-ends — clamp
+  // for display purposes so the header doesn't say "Stage 6 of 5".
+  const stageCountNum = stageCount !== undefined ? Number(stageCount) : 5;
+  const rawStageIdx   = currentStage !== undefined ? Number(currentStage) : 0;
+  const stageIdx      = Math.min(rawStageIdx, stageCountNum - 1);
 
   return (
     <>
@@ -121,13 +146,17 @@ export function PresaleWidget() {
               $FLZY PRESALE
             </h2>
             <p className="font-fredoka text-sky-base text-sm mt-0.5">
-              Stage {stageIdx + 1} of {stageCount?.toString() ?? "–"} &nbsp;·&nbsp; {isEnded ? "🔴 Ended" : "🟢 Live"}
+              {isEnded
+                ? "🔴 Presale ended — Claim is live"
+                : <>Stage {stageIdx + 1} of {stageCount?.toString() ?? "–"} &nbsp;·&nbsp; 🟢 Live</>}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-gray-400 font-fredoka">Price / Token</p>
+            <p className="text-xs text-gray-400 font-fredoka">{isEnded ? "Final Price" : "Price / Token"}</p>
             <p className="font-bangers text-xl txt-yellow" style={{ letterSpacing: "1px" }}>
-              {stageInfo ? parseFloat(formatEther(stageInfo.tokenPrice)).toFixed(7) : "–"} ETH
+              {isEnded
+                ? `${STAGE_CONFIG[stageIdx]?.priceEth ?? "–"} ETH`
+                : stageInfo ? `${parseFloat(formatEther(stageInfo.tokenPrice)).toFixed(7)} ETH` : "–"}
             </p>
           </div>
         </div>
@@ -149,16 +178,18 @@ export function PresaleWidget() {
           </div>
         </div>
 
-        {/* Stage progress */}
-        <div className="mb-4">
-          <div className="flex justify-between text-xs mb-1 font-fredoka text-gray-400">
-            <span>Stage {stageIdx + 1} progress</span>
-            <span>{stagePct.toFixed(1)}%</span>
+        {/* Stage progress — hidden once presale ends (Total Sold is at 100%) */}
+        {!isEnded && (
+          <div className="mb-4">
+            <div className="flex justify-between text-xs mb-1 font-fredoka text-gray-400">
+              <span>Stage {stageIdx + 1} progress</span>
+              <span>{stagePct.toFixed(1)}%</span>
+            </div>
+            <div className="progress-track h-2.5">
+              <div className="progress-fill" style={{ width: `${stagePct}%`, height: "100%" }} />
+            </div>
           </div>
-          <div className="progress-track h-2.5">
-            <div className="progress-fill" style={{ width: `${stagePct}%`, height: "100%" }} />
-          </div>
-        </div>
+        )}
 
         {/* Stats row */}
         <div className="grid grid-cols-2 gap-3 mb-4">
@@ -232,22 +263,50 @@ export function PresaleWidget() {
             </div>
 
             {isMounted && isConnected ? (
-              <button
-                onClick={() => { if (canClaim) writeClaim({ ...presaleContract, functionName: "claim" }); }}
-                disabled={!canClaim || isClaiming || isClaimConfirming}
-                className="btn-meme-blue w-full py-3.5 text-xl"
-              >
-                {isClaiming || isClaimConfirming ? "Claiming…" : "💎 CLAIM $FLZY"}
-              </button>
+              <div className="space-y-2">
+                {/* Primary: Claim & Stake — eye-catching */}
+                <button
+                  onClick={() => { if (canClaimStake) writeClaimStake({ ...presaleContract, functionName: "claimAndStake" }); }}
+                  disabled={!canClaimStake || isClaimStaking || isClaimStakeConfirming}
+                  className="btn-meme-green w-full py-4 text-xl relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    background: canClaimStake ? "linear-gradient(135deg, #00E676 0%, #FFD43B 100%)" : undefined,
+                    boxShadow: canClaimStake ? "0 0 24px rgba(0,230,118,0.4), 4px 4px 0 #000" : undefined,
+                  }}
+                  title={!stakePoolFits && claimableAmount > 0n ? "Stake pool can't cover the reward — use Claim Now, then partial-stake from the Staking widget." : undefined}
+                >
+                  <span className="absolute top-1 right-2 bg-black text-meme-yellow text-[10px] font-bangers px-2 py-0.5 rounded-full" style={{ letterSpacing: "1px" }}>
+                    +{STAKE_REWARD_PCT}%
+                  </span>
+                  {isClaimStaking || isClaimStakeConfirming
+                    ? "Claiming & Staking…"
+                    : `💎 CLAIM & STAKE — earn +${STAKE_REWARD_PCT}% in ${STAKE_LOCK_DAYS}d`}
+                </button>
+
+                {/* Secondary: Claim Now — neutral */}
+                <button
+                  onClick={() => { if (canClaim) writeClaim({ ...presaleContract, functionName: "claim" }); }}
+                  disabled={!canClaim || isClaiming || isClaimConfirming}
+                  className="w-full py-2.5 text-sm font-fredoka font-semibold border-2 border-white/20 rounded-2xl text-white enabled:hover:border-meme-yellow enabled:hover:text-meme-yellow transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {isClaiming || isClaimConfirming ? "Claiming…" : "Claim now (no stake)"}
+                </button>
+
+                {!stakePoolFits && claimableAmount > 0n && (
+                  <p className="text-center font-fredoka text-[11px] text-yellow-300/80">
+                    ⚠️ Stake pool too small for full amount — use Claim Now, then partial-stake from the Staking widget.
+                  </p>
+                )}
+              </div>
             ) : (
               <WalletButton />
             )}
 
             {isClaimSuccess && (
-              <>
-                <p className="text-center font-fredoka text-sm text-meme-green">✅ Tokens claimed successfully!</p>
-                <AddTokenButton />
-              </>
+              <p className="text-center font-fredoka text-sm text-meme-green">✅ Tokens claimed successfully!</p>
+            )}
+            {isClaimStakeSuccess && (
+              <p className="text-center font-fredoka text-sm text-meme-green">✅ Claimed and staked! Track your position in the Staking section.</p>
             )}
           </div>
         )}

@@ -48,7 +48,7 @@ export function ClaimsSection() {
           <div className="meme-card p-4 text-center border-sky-400" style={{ borderColor: "#00BCD4" }}>
             <p className="font-bangers text-lg txt-blue mb-2" style={{ letterSpacing: "1px" }}>📊 VESTING SCHEDULE</p>
             <p className="font-fredoka text-xs text-gray-400">
-              Tokens unlock monthly on the 15th of each month starting after presale ends. Check your schedule in each claim section.
+              Tokens unlock monthly (every ~30 days) starting from the first 15th after presale ends. Check your schedule in each claim section.
             </p>
           </div>
 

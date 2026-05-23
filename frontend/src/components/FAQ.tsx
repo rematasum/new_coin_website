@@ -14,11 +14,23 @@ const FAQS = [
   },
   {
     q: "What is the vesting schedule?",
-    a: "Each presale stage has an instant unlock percentage (Stage 1: 25%, Stage 2: 20%, Stage 3: 15%, Stage 4: 10%, Stage 5: 5%). The remaining tokens vest monthly over 24 months. Unlocks happen on the 15th of each month starting from the first 15th after presale ends.",
+    a: "Each presale stage has an instant unlock percentage (Stage 1: 25%, Stage 2: 20%, Stage 3: 15%, Stage 4: 10%, Stage 5: 5%). The remaining tokens vest monthly over 24 months. Unlocks happen monthly (every ~30 days) starting from the first 15th after presale ends.",
   },
   {
     q: "When can I claim my tokens?",
-    a: "You can claim your instant unlock portion as soon as the presale ends. Monthly vesting unlocks are available on the 15th of each month. Click 'CLAIM $FLZY' in the presale widget when tokens become available.",
+    a: "You can claim your instant unlock portion as soon as the presale ends. Monthly vesting unlocks become available approximately every 30 days. Choose between 'Claim & Stake' (earn +20% over 90 days) or 'Claim Now' from the presale widget.",
+  },
+  {
+    q: "How does staking work?",
+    a: "Lock your $FLZY for 90 days and receive a fixed +20% reward when you withdraw. Rewards come from a finite 150M FLZY pool reserved at staking time. You can stake multiple times — each position has its own 90-day countdown.",
+  },
+  {
+    q: "Can I unstake my $FLZY early?",
+    a: "No. The 90-day lock is firm — there's no early-withdrawal option. Only stake what you're comfortable locking for the full period.",
+  },
+  {
+    q: "What happens when the staking pool runs out?",
+    a: "Each stake reserves its 20% reward up-front. When the 150M pool is fully reserved, new stakes are rejected. The 'Max single stake' figure in the widget shows the largest amount the pool can still accept.",
   },
   {
     q: "What network is $FLZY on?",
@@ -27,6 +39,10 @@ const FAQS = [
   {
     q: "How many presale stages are there?",
     a: "There are 5 presale stages, each with 50,000,000 FLZY (50M) tokens. The price increases with each stage: Stage 1 is the cheapest at 0.000002 ETH/token, up to Stage 5 at 0.000004 ETH/token. Early buyers get the best price AND the highest instant unlock.",
+  },
+  {
+    q: "How is the 1B supply distributed?",
+    a: "250M Presale, 250M Team & Sponsors, 250M Liquidity, 150M Staking Rewards Pool, 100M Airdrop. All distributed atomically at deploy — the deployer keeps 0 tokens.",
   },
   {
     q: "Is the smart contract audited?",
@@ -42,7 +58,7 @@ export function FAQ() {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   return (
-    <section id="faq" className="sky-bg py-20 relative overflow-hidden">
+    <section id="faq" className="sky-bg py-20 relative overflow-hidden" style={{ scrollMarginTop: "110px" }}>
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="absolute bottom-1/3 left-1/4 w-72 h-72 rounded-full opacity-10"
              style={{ background: "#FF6B00", filter: "blur(70px)" }} />

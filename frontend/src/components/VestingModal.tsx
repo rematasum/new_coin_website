@@ -43,7 +43,7 @@ export function VestingModal({ onClose, vestingStart }: VestingModalProps) {
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="font-bangers text-2xl txt-blue txt-shadow-sm" style={{ letterSpacing: "2px" }}>VESTING SCHEDULE</h2>
-            <p className="font-fredoka text-xs text-gray-400 mt-0.5">Monthly unlock · 15th of each month · 24 months</p>
+            <p className="font-fredoka text-xs text-gray-400 mt-0.5">Monthly unlock · every ~30 days · 24 months</p>
           </div>
           <button onClick={onClose} className="btn-meme-orange w-10 h-10 p-0 text-xl rounded-full">×</button>
         </div>

@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "@/lib/providers";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://flozy.meme"),
   title: "FLOZY ($FLZY) — Biggest Meme on Base",
   description: "Join the FLOZY presale on Base network. Buy $FLZY with ETH. 5 stages, early buyers get up to 25% instant unlock.",
   icons: {

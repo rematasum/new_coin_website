@@ -1,13 +1,14 @@
 export function Tokenomics() {
   const slices = [
     { label: "Presale",              pct: 25, amount: "250M", color: "#FFD43B", icon: "🔥" },
-    { label: "Airdrop",              pct: 25, amount: "250M", color: "#A855F7", icon: "🎁" },
-    { label: "Liquidity Pool",       pct: 25, amount: "250M", color: "#4FB9E8", icon: "💧" },
     { label: "Team, Dev & Sponsors", pct: 25, amount: "250M", color: "#00E676", icon: "👨‍💻" },
+    { label: "Liquidity Pool",       pct: 25, amount: "250M", color: "#4FB9E8", icon: "💧" },
+    { label: "Staking Rewards",      pct: 15, amount: "150M", color: "#FF6B9D", icon: "🔒" },
+    { label: "Airdrop",              pct: 10, amount: "100M", color: "#A855F7", icon: "🎁" },
   ];
 
   return (
-    <section id="tokenomics" className="sky-bg py-20 relative overflow-hidden">
+    <section id="tokenomics" className="sky-bg py-20 relative overflow-hidden" style={{ scrollMarginTop: "110px" }}>
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="absolute top-1/4 left-1/3 w-80 h-80 rounded-full opacity-10"
              style={{ background: "#FFD43B", filter: "blur(80px)" }} />
@@ -26,8 +27,8 @@ export function Tokenomics() {
           <p className="font-fredoka text-gray-300 text-lg">Total Supply — Fixed Forever 🔒</p>
         </div>
 
-        {/* Distribution grid — 4 equal slices */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
+        {/* Distribution grid — 5 slices */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-12">
           {slices.map((s) => (
             <div key={s.label} className="meme-card p-5 text-center relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl" style={{ background: s.color }} />
@@ -63,8 +64,9 @@ export function Tokenomics() {
                   { name: "Presale — Stage 4",        instant: "10%",  vesting: "90% over 24 months" },
                   { name: "Presale — Stage 5",        instant: "5%",   vesting: "95% over 24 months" },
                   { name: "Team, Dev & Sponsors",     instant: "25%",  vesting: "75% over 24 months" },
-                  { name: "Liquidity Pool",           instant: "100%", vesting: "No vesting" },
-                  { name: "Airdrop",                  instant: "100%", vesting: "No vesting" },
+                  { name: "Liquidity Pool",           instant: "—",    vesting: "Sent to liquidity wallet at TGE" },
+                  { name: "Staking Rewards Pool",     instant: "—",    vesting: "90-day lock, +20% reward" },
+                  { name: "Airdrop",                  instant: "—",    vesting: "Locked until 30 Dec 2026" },
                 ].map((row, i) => (
                   <tr key={i} className="border-t border-white/5">
                     <td className="px-4 py-3 font-fredoka font-semibold text-white">{row.name}</td>
@@ -76,7 +78,7 @@ export function Tokenomics() {
             </table>
           </div>
           <p className="font-fredoka text-xs text-gray-500 text-center mt-4">
-            Monthly unlocks happen on the <span className="txt-yellow font-bold">15th of each month</span> starting from the first 15th after presale ends.
+            Monthly unlocks happen <span className="txt-yellow font-bold">every ~30 days</span> starting from the first 15th after presale ends.
           </p>
         </div>
       </div>

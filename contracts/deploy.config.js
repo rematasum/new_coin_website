@@ -8,8 +8,9 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * 250M → Presale Contract          (25% of supply, staged purchase + vesting)
  * 250M → TeamVesting Contract      (25% of supply, team + 5 sponsors)
- * 250M → AirdropVault Contract     (25% of supply, fixed unlock date)
+ * 100M → AirdropVault Contract     (10% of supply, fixed unlock date)
  * 250M → Liquidity Wallet Address  (25% of supply, direct transfer)
+ * 150M → Staking Contract          (15% of supply, 90-day lock + 20% reward pool)
  *
  * All tokens distributed at Token contract deployment; deployer receives 0.
  * ─────────────────────────────────────────────────────────────────────────────
@@ -25,13 +26,26 @@ export default {
   distributionM: {
     presale: 250,          // 250M → Presale contract
     teamVesting: 250,      // 250M → TeamVesting contract
-    airdrop: 250,          // 250M → AirdropVault contract
+    airdrop: 100,          // 100M → AirdropVault contract (first 10K users × 10K)
     liquidity: 250,        // 250M → Liquidity wallet
+    staking: 150,          // 150M → Staking contract (reward pool)
+  },
+
+  // ── Staking ────────────────────────────────────────────────────────────────
+  // Reward pool = distributionM.staking. Each stake reserves 20% of its
+  // principal as reward; new stakes are capped by remaining pool.
+  staking: {
+    lockDays: 90,
+    rewardBps: 2000, // 20%
   },
 
   // ── Presale ────────────────────────────────────────────────────────────────
-  // Presale deadline. Format: "YYYY-MM-DD" (midnight UTC). Must be in future!
-  deadline: "2026-08-15",
+  // Presale runs June 1 → June 30, 2026 (June 30 INCLUSIVE).
+  // startDate: buying opens at midnight UTC on this date
+  // deadline:  buying closes at midnight UTC on this date — so use July 1 to
+  //            keep June 30 fully open for buys (last buy = June 30 23:59:59 UTC).
+  startDate: "2026-06-01",
+  deadline: "2026-07-01",
 
   // ── Stages (5 × 50M = 250M = 25% of supply) ───────────────────────────────
   // priceEth         — price per 1 full token in ETH
@@ -57,9 +71,15 @@ export default {
     { name: "Sponsor 5",  address: "0xb1AB86421AB02cbf87d28b654dF4e4ea52355517", amountM: 30,  instantUnlockBps: 2500 },
   ],
 
+  // ── Team Vesting Start ────────────────────────────────────────────────────
+  // First 15th of the month after presale ends (June 30 + ~15 days = July 15).
+  // This is fixed at deploy time; no owner action needed after deploy.
+  teamVestingStartDate: "2026-07-15",
+
   // ── Airdrop Vault (250M total) ────────────────────────────────────────────
   // Fixed unlock date: tokens locked until this date, then claimable by whitelisted users.
-  fixedAirdropDate: "2026-11-15", // Format: "YYYY-MM-DD"
+  // 6 months after presale end (June 30 + 6 months = December 30).
+  fixedAirdropDate: "2026-12-30", // Format: "YYYY-MM-DD"
 
   // ── Liquidity & Admin ──────────────────────────────────────────────────────
   // Liquidity wallet receives 250M tokens (direct transfer, no vesting).

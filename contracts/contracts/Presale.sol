@@ -5,6 +5,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+interface IStaking {
+    function stakeFor(address user, uint256 amount) external returns (uint256);
+}
+
 /**
  * @title Presale
  * @notice Staged presale with per-stage monthly vesting.
@@ -31,10 +35,14 @@ contract Presale is Ownable, ReentrancyGuard {
     // ─── State ────────────────────────────────────────────────────────────────
 
     IERC20 public token;
+    address public stakingContract;
 
     Stage[] public stages;
     uint256 public currentStage;
 
+    /// Midnight UTC when buying starts. Immutable after deploy (no setter).
+    uint256 public startTime;
+    /// Midnight UTC when buying ends. Owner can extend via updateDeadline.
     uint256 public deadline;
     bool public presaleActive;
     bool public presaleEnded;
@@ -59,29 +67,33 @@ contract Presale is Ownable, ReentrancyGuard {
 
     event TokensPurchased(address indexed buyer, uint256 ethAmount, uint256 tokenAmount, uint256 stage);
     event Claimed(address indexed user, uint256 tokenAmount);
+    event ClaimedAndStaked(address indexed user, uint256 tokenAmount, uint256 positionIndex);
     event StageAdvanced(uint256 newStage);
     event PresaleEnded(uint256 totalSold, uint256 totalRaised, uint256 endTime, uint256 vestingStart);
     event UnsoldTokensBurned(uint256 amount);
     event EthWithdrawn(address indexed to, uint256 amount);
     event NewPurchase(address indexed buyer, uint256 tokenAmount);
     event TokenSet(address indexed token);
+    event StakingContractSet(address indexed stakingContract);
 
     // ─── Constructor ──────────────────────────────────────────────────────────
 
     constructor(
         address token_,
+        uint256 startTime_,
         uint256 deadline_,
         uint256[] memory stagePrices_,
         uint256[] memory stageAllocations_,
         uint256[] memory instantUnlockBps_,
         address owner_
     ) Ownable(owner_) {
-        require(deadline_ > block.timestamp, "Deadline in past");
+        require(deadline_ > startTime_, "Deadline must be after start");
         require(stagePrices_.length == stageAllocations_.length, "Stage length mismatch");
         require(stagePrices_.length == instantUnlockBps_.length, "Unlock bps length mismatch");
         require(stagePrices_.length > 0, "No stages");
 
         token = IERC20(token_);
+        startTime = startTime_;
         deadline = deadline_;
 
         for (uint256 i = 0; i < stagePrices_.length; i++) {
@@ -113,11 +125,23 @@ contract Presale is Ownable, ReentrancyGuard {
         emit TokenSet(token_);
     }
 
+    /**
+     * @notice One-shot setter for the Staking contract used by `claimAndStake`.
+     *         Callable only by owner, only before any staking address has been set.
+     */
+    function setStakingContract(address staking_) external onlyOwner {
+        require(stakingContract == address(0), "Staking already set");
+        require(staking_ != address(0), "Invalid staking address");
+        stakingContract = staking_;
+        emit StakingContractSet(staking_);
+    }
+
     // ─── Modifiers ────────────────────────────────────────────────────────────
 
     modifier whenActive() {
         require(presaleActive, "Presale not active");
         require(!presaleEnded, "Presale ended");
+        require(block.timestamp >= startTime, "Presale not started yet");
         require(block.timestamp <= deadline, "Deadline passed");
         _;
     }
@@ -187,27 +211,25 @@ contract Presale is Ownable, ReentrancyGuard {
      *         Monthly tranches unlock every 30 days starting from vestingStart.
      */
     function claim() external nonReentrant {
-        require(_isEnded(), "Presale not ended yet");
-
-        uint256 totalClaimable = 0;
-
-        for (uint256 i = 0; i < stages.length; i++) {
-            VestingRecord storage record = vestingRecords[msg.sender][i];
-            if (record.totalAmount == 0) continue;
-
-            uint256 unlockable = _calculateUnlockable(record.totalAmount, stages[i].instantUnlockBps);
-            if (unlockable > record.claimed) {
-                uint256 claimable = unlockable - record.claimed;
-                record.claimed += claimable;
-                totalClaimable += claimable;
-            }
-        }
-
-        require(totalClaimable > 0, "Nothing to claim");
-        totalClaimed += totalClaimable;
+        uint256 totalClaimable = _settleClaimable(msg.sender);
         require(token.transfer(msg.sender, totalClaimable), "Transfer failed");
-
         emit Claimed(msg.sender, totalClaimable);
+    }
+
+    /**
+     * @notice Claim all currently unlocked tokens AND immediately stake them
+     *         (90-day lock, 20% reward). Single transaction, no token approval
+     *         required by the user — Presale transfers directly to Staking and
+     *         opens a position on the user's behalf.
+     */
+    function claimAndStake() external nonReentrant {
+        require(stakingContract != address(0), "Staking not set");
+        uint256 totalClaimable = _settleClaimable(msg.sender);
+
+        require(token.transfer(stakingContract, totalClaimable), "Transfer failed");
+        uint256 positionIndex = IStaking(stakingContract).stakeFor(msg.sender, totalClaimable);
+
+        emit ClaimedAndStaked(msg.sender, totalClaimable, positionIndex);
     }
 
     // ─── Views ────────────────────────────────────────────────────────────────
@@ -363,6 +385,30 @@ contract Presale is Ownable, ReentrancyGuard {
     }
 
     // ─── Internal ─────────────────────────────────────────────────────────────
+
+    /**
+     * @notice Computes claimable across all stages, updates per-stage `claimed`
+     *         and `totalClaimed`, and returns the total. Reverts if zero.
+     *         Shared by `claim()` and `claimAndStake()`.
+     */
+    function _settleClaimable(address user) internal returns (uint256 totalClaimable) {
+        require(_isEnded(), "Presale not ended yet");
+
+        for (uint256 i = 0; i < stages.length; i++) {
+            VestingRecord storage record = vestingRecords[user][i];
+            if (record.totalAmount == 0) continue;
+
+            uint256 unlockable = _calculateUnlockable(record.totalAmount, stages[i].instantUnlockBps);
+            if (unlockable > record.claimed) {
+                uint256 claimable = unlockable - record.claimed;
+                record.claimed += claimable;
+                totalClaimable += claimable;
+            }
+        }
+
+        require(totalClaimable > 0, "Nothing to claim");
+        totalClaimed += totalClaimable;
+    }
 
     function _advanceStage() internal {
         currentStage++;

@@ -1,19 +1,20 @@
 {
   "network": "base_sepolia",
   "chainId": "84532",
-  "tokenAddress": "0xec41Ed3dc638f8d20c4da9A04b04059CeE64d58D",
-  "presaleAddress": "0x31704306a11cEDdA1b9A3Cf10b5bEd3f44312f58",
-  "teamVestingAddress": "0xEeFF72510a01a0FCc49c32c54641EC575DF2D48C",
-  "airdropVaultAddress": "0x6b43fCc42c35080BdeA80771E7FB653155c097B1",
+  "tokenAddress": "0x1D3eaF9678F769CF3ade3B85d8bDc02C731233B2",
+  "presaleAddress": "0xd8ea1D5415D03da56da6d12CD6b05c113FD583Bc",
+  "teamVestingAddress": "0x811b613a4FE3B9D376ff1378d58bDf08612a4B0B",
+  "airdropVaultAddress": "0xFEBc13B2aC11502f59114372bd90f36740e239F7",
+  "stakingAddress": "0x31d229891fC330849759Be770C0d3868650f015C",
   "liquidityAddress": "0xCE0e20488Da66DE8ce8080412f9094d801f617C4",
   "deployer": "0x0773A2064Ee839ec5f25cfE090a08b57B87569c6",
-  "deployedAt": "2026-05-15T17:30:27.966Z",
+  "deployedAt": "2026-05-23T10:46:57.521Z",
   "config": {
     "tokenName": "Flozy",
     "tokenSymbol": "FLZY",
     "totalSupply": "1000000000",
-    "deadline": "2026-08-15",
-    "fixedAirdropDate": "2026-11-15",
+    "deadline": "2026-07-01",
+    "fixedAirdropDate": "2026-07-30",
     "stages": [
       {
         "priceEth": "0.000002",
@@ -82,8 +83,13 @@
     "distribution": {
       "presale": 250,
       "teamVesting": 250,
-      "airdrop": 250,
-      "liquidity": 250
+      "airdrop": 100,
+      "liquidity": 250,
+      "staking": 150
+    },
+    "staking": {
+      "lockDays": 90,
+      "rewardBps": 2000
     }
   }
 }

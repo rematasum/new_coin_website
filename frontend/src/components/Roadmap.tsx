@@ -61,7 +61,7 @@ export function Roadmap() {
   };
 
   return (
-    <section id="roadmap" className="sky-bg py-20 relative overflow-hidden">
+    <section id="roadmap" className="sky-bg py-20 relative overflow-hidden" style={{ scrollMarginTop: "110px" }}>
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="absolute top-1/3 right-1/4 w-96 h-96 rounded-full opacity-10"
              style={{ background: "#A855F7", filter: "blur(80px)" }} />

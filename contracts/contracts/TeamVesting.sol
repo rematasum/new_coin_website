@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 /**
  * @title TeamVesting
  * @notice Monthly vesting for team and sponsor allocations.
- *         Owner sets vestingStart (midnight UTC of the first 15th after TGE).
+ *         vestingStart is fixed at deploy time (midnight UTC of the first 15th after presale ends).
  *         Tokens unlock in 24 equal monthly tranches (every 30 days from vestingStart).
  *         An optional instant unlock % is supported per beneficiary.
  *
@@ -32,8 +32,8 @@ contract TeamVesting is Ownable, ReentrancyGuard {
     mapping(address => Beneficiary) public beneficiaries;
     address[] public beneficiaryList;
 
-    uint256 public vestingStart;  // midnight UTC of first 15th — set by owner
-    bool    public vestingActive; // true once vestingStart is set
+    uint256 public vestingStart;  // midnight UTC of first 15th — fixed at deploy
+    bool    public vestingActive; // always true after deploy
 
     uint256 public constant VESTING_MONTHS = 24;
     uint256 public constant MONTH_DURATION = 30 days;
@@ -51,13 +51,17 @@ contract TeamVesting is Ownable, ReentrancyGuard {
         address[] memory addresses_,
         uint256[] memory amounts_,
         uint256[] memory instantBps_,
+        uint256 vestingStart_,
         address owner_
     ) Ownable(owner_) {
         require(addresses_.length == amounts_.length, "Length mismatch");
         require(addresses_.length == instantBps_.length, "Length mismatch");
         require(addresses_.length > 0, "No beneficiaries");
+        require(vestingStart_ > 0, "Invalid vestingStart");
 
         token = IERC20(token_);
+        vestingStart = vestingStart_;
+        vestingActive = true;
 
         for (uint256 i = 0; i < addresses_.length; i++) {
             require(addresses_[i] != address(0), "Invalid address");
@@ -70,6 +74,8 @@ contract TeamVesting is Ownable, ReentrancyGuard {
             });
             beneficiaryList.push(addresses_[i]);
         }
+
+        emit VestingStarted(vestingStart_);
     }
 
     // ─── Owner ────────────────────────────────────────────────────────────────
@@ -86,22 +92,10 @@ contract TeamVesting is Ownable, ReentrancyGuard {
         emit TokenSet(token_);
     }
 
-    /**
-     * @notice Set vesting start. Call with the Unix timestamp (midnight UTC) of the
-     *         first 15th of the month after TGE. Can only be called once.
-     */
-    function startVesting(uint256 firstFifteenth_) external onlyOwner {
-        require(!vestingActive, "Already started");
-        require(firstFifteenth_ > block.timestamp, "Must be in future");
-        vestingStart = firstFifteenth_;
-        vestingActive = true;
-        emit VestingStarted(firstFifteenth_);
-    }
-
     // ─── Public ───────────────────────────────────────────────────────────────
 
     function claim() external nonReentrant {
-        require(vestingActive, "Vesting not started");
+        require(vestingActive, "Vesting not active");
         Beneficiary storage b = beneficiaries[msg.sender];
         require(b.totalAmount > 0, "Not a beneficiary");
 

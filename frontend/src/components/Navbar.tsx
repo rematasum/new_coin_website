@@ -31,6 +31,10 @@ export function Navbar() {
              className="font-fredoka text-white hover:text-meme-yellow transition-colors text-sm font-semibold tracking-wide">
             Claims
           </a>
+          <a href="#stake"
+             className="font-fredoka text-white hover:text-meme-yellow transition-colors text-sm font-semibold tracking-wide">
+            Stake
+          </a>
           <a href="#tokenomics"
              className="font-fredoka text-white hover:text-meme-yellow transition-colors text-sm font-semibold tracking-wide">
             Tokenomics

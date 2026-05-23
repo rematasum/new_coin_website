@@ -13,6 +13,10 @@ const Navbar = dynamic(
   () => import("@/components/Navbar").then((m) => ({ default: m.Navbar })),
   { ssr: false }
 );
+const NetworkBanner = dynamic(
+  () => import("@/components/NetworkBanner").then((m) => ({ default: m.NetworkBanner })),
+  { ssr: false }
+);
 const HeroSection = dynamic(
   () => import("@/components/HeroSection").then((m) => ({ default: m.HeroSection })),
   { ssr: false }
@@ -21,14 +25,20 @@ const ClaimsSection = dynamic(
   () => import("@/components/ClaimsSection").then((m) => ({ default: m.ClaimsSection })),
   { ssr: false }
 );
+const StakingSection = dynamic(
+  () => import("@/components/StakingSection").then((m) => ({ default: m.StakingSection })),
+  { ssr: false }
+);
 
 export default function Home() {
   return (
     <main>
+      <NetworkBanner />
       <MarqueeText />
       <Navbar />
       <HeroSection />
       <ClaimsSection />
+      <StakingSection />
       <Tokenomics />
       <Roadmap />
       <AirdropForm />

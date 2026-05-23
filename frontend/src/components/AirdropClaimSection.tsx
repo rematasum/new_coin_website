@@ -66,8 +66,9 @@ export function AirdropClaimSection() {
   const claimableNow: bigint = isMounted ? ((alloc as any)?.[2] ?? 0n) : 0n;
   const daysUntilUnlock: bigint = isMounted ? ((alloc as any)?.[3] ?? 0n) : 0n;
 
-  const isUnlocked = isMounted && claimableNow > 0n;
-  const canClaim = isMounted && isConnected && isCorrectChain && isUnlocked;
+  const isFullyClaimed = isMounted && totalAmount > 0n && claimed >= totalAmount;
+  const isUnlocked = isMounted && (claimableNow > 0n || isFullyClaimed);
+  const canClaim = isMounted && isConnected && isCorrectChain && claimableNow > 0n;
   const hasAllocation = isMounted && totalAmount > 0n;
 
   return (
@@ -79,7 +80,7 @@ export function AirdropClaimSection() {
             🎁 AIRDROP CLAIM
           </h2>
           <p className="font-fredoka text-sky-base text-sm mt-0.5">
-            {isUnlocked ? "🟢 Available" : "🔴 Locked"}
+            {isFullyClaimed ? "✅ Claimed" : isUnlocked ? "🟢 Available" : "🔴 Locked"}
           </p>
         </div>
       </div>
@@ -112,7 +113,7 @@ export function AirdropClaimSection() {
           </div>
 
           {/* Unlock status */}
-          {!isUnlocked && daysUntilUnlock !== undefined && (
+          {!isUnlocked && !isFullyClaimed && daysUntilUnlock !== undefined && (
             <div className="meme-card p-4 text-center border-orange-400" style={{ borderColor: "#FF9800" }}>
               <p className="font-fredoka text-xs text-gray-400 mb-1">Unlocks In</p>
               <p className="font-bangers text-2xl txt-yellow" style={{ letterSpacing: "1px" }}>
@@ -141,7 +142,9 @@ export function AirdropClaimSection() {
                   <span className="w-5 h-5 border-3 border-black/30 border-t-black rounded-full animate-spin" />
                   {isClaiming ? "Confirm in wallet…" : "Processing…"}
                 </span>
-              ) : isUnlocked && canClaim ? (
+              ) : isFullyClaimed ? (
+                "✅ ALREADY CLAIMED"
+              ) : canClaim ? (
                 "💚 CLAIM AIRDROP"
               ) : (
                 `🔒 CLAIM (LOCKED ${isMounted && Number(daysUntilUnlock) > 0 ? `${Number(daysUntilUnlock)} DAYS` : ""})`

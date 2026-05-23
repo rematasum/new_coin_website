@@ -13,16 +13,23 @@ function dateToUnixTimestamp(dateStr) {
 function parseConfig() {
   const totalSupply = hre.ethers.parseEther(cfg.totalSupply);
 
-  // Presale deadline
+  // Presale start & deadline
+  const startDateTs = dateToUnixTimestamp(cfg.startDate);
   const deadlineTs = dateToUnixTimestamp(cfg.deadline);
-  if (deadlineTs <= BigInt(Math.floor(Date.now() / 1000))) {
-    throw new Error(`deadline "${cfg.deadline}" is in the past`);
+  if (deadlineTs <= startDateTs) {
+    throw new Error(`deadline "${cfg.deadline}" must be after startDate "${cfg.startDate}"`);
   }
 
   // Airdrop unlock date
   const airdropUnlockTs = dateToUnixTimestamp(cfg.fixedAirdropDate);
   if (airdropUnlockTs <= BigInt(Math.floor(Date.now() / 1000))) {
     throw new Error(`fixedAirdropDate "${cfg.fixedAirdropDate}" is in the past`);
+  }
+
+  // Team vesting start (first 15th of month after presale ends)
+  const teamVestingStartTs = dateToUnixTimestamp(cfg.teamVestingStartDate);
+  if (teamVestingStartTs <= BigInt(Math.floor(Date.now() / 1000))) {
+    throw new Error(`teamVestingStartDate "${cfg.teamVestingStartDate}" is in the past`);
   }
 
   // Presale stages
@@ -38,13 +45,22 @@ function parseConfig() {
   const totalTeam     = tvAmounts.reduce((a, b) => a + b, 0n);
 
   // Distributions
-  const totalAirdrop  = hre.ethers.parseEther(String(cfg.distributionM.airdrop * 1_000_000));
+  const totalAirdrop   = hre.ethers.parseEther(String(cfg.distributionM.airdrop * 1_000_000));
   const totalLiquidity = hre.ethers.parseEther(String(cfg.distributionM.liquidity * 1_000_000));
+  const totalStaking   = hre.ethers.parseEther(String(cfg.distributionM.staking * 1_000_000));
+
+  // Sanity: sum must equal totalSupply
+  const sum = totalPresale + totalTeam + totalAirdrop + totalLiquidity + totalStaking;
+  if (sum !== totalSupply) {
+    throw new Error(`Distribution sum (${sum}) does not equal totalSupply (${totalSupply})`);
+  }
 
   return {
     totalSupply,
+    startDateTs,
     deadlineTs,
     airdropUnlockTs,
+    teamVestingStartTs,
     stagePrices,
     stageAllocations,
     instantUnlockBps,
@@ -55,14 +71,17 @@ function parseConfig() {
     totalTeam,
     totalAirdrop,
     totalLiquidity,
+    totalStaking,
   };
 }
 
 async function main() {
   const {
     totalSupply,
+    startDateTs,
     deadlineTs,
     airdropUnlockTs,
+    teamVestingStartTs,
     stagePrices,
     stageAllocations,
     instantUnlockBps,
@@ -73,6 +92,7 @@ async function main() {
     totalTeam,
     totalAirdrop,
     totalLiquidity,
+    totalStaking,
   } = parseConfig();
 
   const [deployer] = await hre.ethers.getSigners();
@@ -94,6 +114,7 @@ async function main() {
   console.log("  → TeamVesting:   ", hre.ethers.formatEther(totalTeam), "tokens");
   console.log("  → AirdropVault:  ", hre.ethers.formatEther(totalAirdrop), "tokens");
   console.log("  → Liquidity:     ", hre.ethers.formatEther(totalLiquidity), "tokens");
+  console.log("  → Staking:       ", hre.ethers.formatEther(totalStaking), "tokens");
   console.log("");
   console.log("Presale:");
   console.log("  Deadline:        ", cfg.deadline, `(${deadlineTs})`);
@@ -101,6 +122,7 @@ async function main() {
   console.log("");
   console.log("Team & Sponsors:");
   console.log("  Beneficiaries:   ", cfg.teamBeneficiaries.length);
+  console.log("  Vesting Start:   ", cfg.teamVestingStartDate, `(${teamVestingStartTs})`);
   console.log("");
   console.log("Airdrop:");
   console.log("  Unlock Date:     ", cfg.fixedAirdropDate, `(${airdropUnlockTs})`);
@@ -110,7 +132,8 @@ async function main() {
   console.log("1. Deploying Presale...");
   const Presale = await hre.ethers.getContractFactory("Presale");
   const presale = await Presale.deploy(
-    hre.ethers.ZeroAddress, // placeholder token address (will not be used in constructor)
+    hre.ethers.ZeroAddress, // placeholder token address
+    startDateTs,
     deadlineTs,
     stagePrices,
     stageAllocations,
@@ -129,6 +152,7 @@ async function main() {
     tvAddresses,
     tvAmounts,
     tvInstantBps,
+    teamVestingStartTs,
     deployer.address
   );
   await teamVesting.waitForDeployment();
@@ -147,8 +171,21 @@ async function main() {
   const airdropVaultAddress = await airdropVault.getAddress();
   console.log("   ✓ AirdropVault:", airdropVaultAddress);
 
-  // 4. Deploy Token with all distributions
-  console.log("4. Deploying Token (distributing to all contracts)...");
+  // 4. Deploy Staking (needs presale address, ZeroAddress for token)
+  console.log("4. Deploying Staking...");
+  const Staking = await hre.ethers.getContractFactory("Staking");
+  const staking = await Staking.deploy(
+    hre.ethers.ZeroAddress,
+    presaleAddress,
+    totalStaking,
+    deployer.address
+  );
+  await staking.waitForDeployment();
+  const stakingAddress = await staking.getAddress();
+  console.log("   ✓ Staking:", stakingAddress);
+
+  // 5. Deploy Token with all distributions
+  console.log("5. Deploying Token (distributing to all contracts)...");
   const Token = await hre.ethers.getContractFactory("Token");
   const token = await Token.deploy(
     cfg.tokenName,
@@ -158,20 +195,22 @@ async function main() {
     teamVestingAddress,
     airdropVaultAddress,
     cfg.liquidityAddress,
+    stakingAddress,
     totalPresale,
     totalTeam,
     totalAirdrop,
     totalLiquidity,
+    totalStaking,
     deployer.address
   );
   await token.waitForDeployment();
   const tokenAddress = await token.getAddress();
   console.log("   ✓ Token:", tokenAddress);
 
-  // 5. Wire token address into satellite contracts (one-shot setToken).
+  // 6. Wire token address into satellite contracts (one-shot setToken).
   //    Required because satellites were deployed with ZeroAddress placeholder
   //    above (circular dependency: Token needs satellite addresses to mint).
-  console.log("\n5. Wiring token address into satellite contracts...");
+  console.log("\n6. Wiring token address into satellite contracts...");
   const setTokenTx1 = await presale.setToken(tokenAddress);
   await setTokenTx1.wait();
   console.log("   ✓ Presale.setToken");
@@ -181,9 +220,17 @@ async function main() {
   const setTokenTx3 = await airdropVault.setToken(tokenAddress);
   await setTokenTx3.wait();
   console.log("   ✓ AirdropVault.setToken");
+  const setTokenTx4 = await staking.setToken(tokenAddress);
+  await setTokenTx4.wait();
+  console.log("   ✓ Staking.setToken");
 
-  // 6. Save deployment record and verification arguments
-  console.log("\n6. Saving deployment record and verification arguments...");
+  // 7. Wire staking contract into Presale (enables claimAndStake)
+  const setStakingTx = await presale.setStakingContract(stakingAddress);
+  await setStakingTx.wait();
+  console.log("   ✓ Presale.setStakingContract");
+
+  // 8. Save deployment record and verification arguments
+  console.log("\n8. Saving deployment record and verification arguments...");
   const deploymentInfo = {
     network: hre.network.name,
     chainId: (await hre.ethers.provider.getNetwork()).chainId.toString(),
@@ -191,6 +238,7 @@ async function main() {
     presaleAddress,
     teamVestingAddress,
     airdropVaultAddress,
+    stakingAddress,
     liquidityAddress: cfg.liquidityAddress,
     deployer: deployer.address,
     deployedAt: new Date().toISOString(),
@@ -203,6 +251,7 @@ async function main() {
       stages: cfg.stages,
       teamBeneficiaries: cfg.teamBeneficiaries,
       distribution: cfg.distributionM,
+      staking: cfg.staking,
     },
   };
   const outDir = resolve(__dirname, "../deployments");
@@ -226,10 +275,12 @@ export default [
   "${teamVestingAddress}", // teamVestingAddr
   "${airdropVaultAddress}", // airdropVaultAddr
   "${cfg.liquidityAddress}", // liquidityAddr
+  "${stakingAddress}", // stakingAddr
   "${totalPresale}", // presaleAmount
   "${totalTeam}", // teamVestingAmount
   "${totalAirdrop}", // airdropAmount
   "${totalLiquidity}", // liquidityAmount
+  "${totalStaking}", // stakingAmount
   "${deployer.address}" // owner
 ];
 
@@ -258,6 +309,7 @@ export default [
 //   ${JSON.stringify(tvAddresses)}, // addresses
 //   ${JSON.stringify(tvAmounts.map(a => a.toString()))}, // amounts
 //   ${JSON.stringify(tvInstantBps.map(b => b.toString()))}, // instantUnlockBps
+//   "${teamVestingStartTs}", // vestingStart (${cfg.teamVestingStartDate})
 //   "${deployer.address}" // owner
 // ]
 //
@@ -267,10 +319,39 @@ export default [
 //   "${airdropUnlockTs}", // fixedUnlockDate
 //   "${deployer.address}" // owner
 // ]
+//
+// Staking Constructor Args:
+// [
+//   "${hre.ethers.ZeroAddress}", // token (placeholder)
+//   "${presaleAddress}", // presale
+//   "${totalStaking}", // rewardPool (150M)
+//   "${deployer.address}" // owner
+// ]
 `;
   const argsPath = resolve(outDir, `arguments-${hre.network.name}.js`);
   writeFileSync(argsPath, argumentsContent);
   console.log("   ✓ Arguments saved →", argsPath);
+
+  // Standalone Staking verification args (4-arg constructor)
+  const stakingArgsContent = `// Staking verification arguments
+// Generated: ${new Date().toISOString()}
+// Network: ${hre.network.name}
+
+export default [
+  "${hre.ethers.ZeroAddress}",
+  "${presaleAddress}",
+  "${totalStaking}",
+  "${deployer.address}"
+];
+
+// USAGE:
+// npx hardhat verify --network ${hre.network.name} \\
+//   --constructor-args deployments/arguments-staking-${hre.network.name}.js \\
+//   ${stakingAddress}
+`;
+  const stakingArgsPath = resolve(outDir, `arguments-staking-${hre.network.name}.js`);
+  writeFileSync(stakingArgsPath, stakingArgsContent);
+  console.log("   ✓ Staking args saved →", stakingArgsPath);
 
   // Summary
   const chainId = hre.network.name === "base_mainnet" ? 8453 : 84532;
@@ -282,12 +363,14 @@ export default [
   console.log(`    Presale:         ${presaleAddress}`);
   console.log(`    TeamVesting:     ${teamVestingAddress}`);
   console.log(`    AirdropVault:    ${airdropVaultAddress}`);
+  console.log(`    Staking:         ${stakingAddress}`);
   console.log(`    Liquidity (Wallet): ${cfg.liquidityAddress}`);
   console.log("\n  Token Distribution:");
   console.log(`    ✓ Presale received ${hre.ethers.formatEther(totalPresale)} tokens`);
   console.log(`    ✓ TeamVesting received ${hre.ethers.formatEther(totalTeam)} tokens`);
   console.log(`    ✓ AirdropVault received ${hre.ethers.formatEther(totalAirdrop)} tokens`);
   console.log(`    ✓ Liquidity wallet received ${hre.ethers.formatEther(totalLiquidity)} tokens`);
+  console.log(`    ✓ Staking received ${hre.ethers.formatEther(totalStaking)} tokens (reward pool)`);
   console.log("\n" + "═".repeat(55));
   console.log("  NEXT STEPS");
   console.log("═".repeat(55));
@@ -296,18 +379,20 @@ export default [
   console.log(`     NEXT_PUBLIC_PRESALE_ADDRESS=${presaleAddress}`);
   console.log(`     NEXT_PUBLIC_TEAM_VESTING_ADDRESS=${teamVestingAddress}`);
   console.log(`     NEXT_PUBLIC_AIRDROP_VAULT_ADDRESS=${airdropVaultAddress}`);
+  console.log(`     NEXT_PUBLIC_STAKING_ADDRESS=${stakingAddress}`);
   console.log(`     NEXT_PUBLIC_CHAIN_ID=${chainId}`);
-  console.log("\n  2. Call startVesting() on TeamVesting contract");
-  console.log("     with Unix timestamp of next 15th of month.");
-  console.log("\n  3. Add airdrop participants to AirdropVault:");
+  console.log(`\n  TeamVesting vesting starts automatically on: ${cfg.teamVestingStartDate} (${teamVestingStartTs})`);
+  console.log("  No startVesting() call needed.\n");
+  console.log("  2. Add airdrop participants to AirdropVault:");
   console.log("     addAirdropParticipants(address[] users, uint256[] amounts)");
-  console.log("\n  Note: setToken() was called automatically on all 3 satellite contracts");
-  console.log("        during deploy (step 5). No manual action required.");
-  console.log("\n  4. Verify contracts on Basescan (if mainnet):");
-  console.log(`     npx hardhat verify --network ${hre.network.name} ${tokenAddress}`);
+  console.log("\n  Note: setToken() was called automatically on all satellite contracts");
+  console.log("        during deploy (step 6). No manual action required.");
+  console.log("\n  3. Verify contracts on Basescan (if mainnet):");
+  console.log(`     npx hardhat verify --network ${hre.network.name} --constructor-args deployments/arguments-${hre.network.name}.js ${tokenAddress}`);
   console.log(`     npx hardhat verify --network ${hre.network.name} ${presaleAddress}`);
   console.log(`     npx hardhat verify --network ${hre.network.name} ${teamVestingAddress}`);
   console.log(`     npx hardhat verify --network ${hre.network.name} ${airdropVaultAddress}`);
+  console.log(`     npx hardhat verify --network ${hre.network.name} --constructor-args deployments/arguments-staking-${hre.network.name}.js ${stakingAddress}`);
 }
 
 main().catch((err) => {

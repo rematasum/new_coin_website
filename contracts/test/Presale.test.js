@@ -25,15 +25,14 @@ const MONTH = 30n * 24n * 3600n; // 30 days in seconds
 const VESTING_MONTHS = 24n;
 
 async function deploy() {
-  const [owner, buyer1, buyer2] = await hre.ethers.getSigners();
+  const [owner, buyer1, buyer2, liquidity] = await hre.ethers.getSigners();
   const deadline = BigInt(await time.latest()) + 86400n * 30n;
 
-  const Token = await hre.ethers.getContractFactory("Token");
-  const token = await Token.deploy("Flozy", "FLZY", TOTAL_SUPPLY, owner.address);
-
+  // Deploy satellites with token = address(0)
   const Presale = await hre.ethers.getContractFactory("Presale");
   const presale = await Presale.deploy(
-    await token.getAddress(),
+    hre.ethers.ZeroAddress,
+    0n, // startTime = 0 (immediate — tests)
     deadline,
     STAGE_PRICES,
     STAGE_ALLOCS,
@@ -41,9 +40,55 @@ async function deploy() {
     owner.address
   );
 
-  await token.transfer(await presale.getAddress(), PRESALE_AMOUNT);
+  const TeamVesting = await hre.ethers.getContractFactory("TeamVesting");
+  const tvVestingStart = BigInt(await time.latest()) + 86400n * 5n;
+  const teamVesting = await TeamVesting.deploy(
+    hre.ethers.ZeroAddress,
+    [owner.address],
+    [hre.ethers.parseEther("250000000")],
+    [2500n],
+    tvVestingStart,
+    owner.address
+  );
 
-  return { token, presale, owner, buyer1, buyer2, deadline };
+  const fixedUnlock = BigInt(await time.latest()) + 86400n * 180n;
+  const AirdropVault = await hre.ethers.getContractFactory("AirdropVault");
+  const airdrop = await AirdropVault.deploy(hre.ethers.ZeroAddress, fixedUnlock, owner.address);
+
+  const Staking = await hre.ethers.getContractFactory("Staking");
+  const staking = await Staking.deploy(
+    hre.ethers.ZeroAddress,
+    await presale.getAddress(),
+    hre.ethers.parseEther("150000000"),
+    owner.address
+  );
+
+  const PRESALE_A = hre.ethers.parseEther("250000000");
+  const TEAM_A    = hre.ethers.parseEther("250000000");
+  const AIRDROP_A = hre.ethers.parseEther("100000000");
+  const LIQ_A     = hre.ethers.parseEther("250000000");
+  const STAKING_A = hre.ethers.parseEther("150000000");
+  const Token = await hre.ethers.getContractFactory("Token");
+  const token = await Token.deploy(
+    "Flozy",
+    "FLZY",
+    TOTAL_SUPPLY,
+    await presale.getAddress(),
+    await teamVesting.getAddress(),
+    await airdrop.getAddress(),
+    liquidity.address,
+    await staking.getAddress(),
+    PRESALE_A, TEAM_A, AIRDROP_A, LIQ_A, STAKING_A,
+    owner.address
+  );
+
+  await presale.connect(owner).setToken(await token.getAddress());
+  await teamVesting.connect(owner).setToken(await token.getAddress());
+  await airdrop.connect(owner).setToken(await token.getAddress());
+  await staking.connect(owner).setToken(await token.getAddress());
+  await presale.connect(owner).setStakingContract(await staking.getAddress());
+
+  return { token, presale, staking, owner, buyer1, buyer2, deadline };
 }
 
 // Buy then owner-end the presale; attaches vestingStart to context
@@ -58,9 +103,11 @@ async function buyAndEnd(ethIn = hre.ethers.parseEther("1")) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Token", () => {
-  it("mints total supply to owner", async () => {
-    const { token, owner } = await deploy();
-    expect(await token.balanceOf(owner.address)).to.equal(TOTAL_SUPPLY - PRESALE_AMOUNT);
+  it("distributes total supply to satellites + liquidity (deployer gets 0)", async () => {
+    const { token, owner, presale } = await deploy();
+    expect(await token.balanceOf(owner.address)).to.equal(0n);
+    expect(await token.balanceOf(await presale.getAddress())).to.equal(PRESALE_AMOUNT);
+    expect(await token.totalSupply()).to.equal(TOTAL_SUPPLY);
   });
 });
 
@@ -74,15 +121,13 @@ describe("Presale", () => {
       expect(await presale.stageCount()).to.equal(5);
     });
 
-    it("rejects past deadline", async () => {
+    it("rejects deadline before start", async () => {
       const [owner] = await hre.ethers.getSigners();
-      const Token = await hre.ethers.getContractFactory("Token");
-      const token = await Token.deploy("F", "F", TOTAL_SUPPLY, owner.address);
       const Presale = await hre.ethers.getContractFactory("Presale");
-      const pastDeadline = BigInt(await time.latest()) - 1n;
+      const future = BigInt(await time.latest()) + 86400n;
       await expect(
-        Presale.deploy(await token.getAddress(), pastDeadline, STAGE_PRICES, STAGE_ALLOCS, INSTANT_UNLOCK_BPS, owner.address)
-      ).to.be.revertedWith("Deadline in past");
+        Presale.deploy(hre.ethers.ZeroAddress, future, future - 1n, STAGE_PRICES, STAGE_ALLOCS, INSTANT_UNLOCK_BPS, owner.address)
+      ).to.be.revertedWith("Deadline must be after start");
     });
   });
 
@@ -310,6 +355,77 @@ describe("Presale", () => {
       const ethIn = hre.ethers.parseEther("1");
       const expected = (ethIn * hre.ethers.parseEther("1")) / STAGE_PRICES[0];
       expect(await presale.estimateTokens(ethIn)).to.equal(expected);
+    });
+  });
+
+  describe("setStakingContract", () => {
+    it("emits and stores the staking address", async () => {
+      const { presale, staking } = await deploy();
+      expect(await presale.stakingContract()).to.equal(await staking.getAddress());
+    });
+
+    it("rejects re-entry", async () => {
+      const { presale, owner } = await deploy();
+      await expect(presale.connect(owner).setStakingContract(owner.address))
+        .to.be.revertedWith("Staking already set");
+    });
+  });
+
+  describe("claimAndStake", () => {
+    it("reverts if presale still active", async () => {
+      const { presale, buyer1 } = await deploy();
+      await presale.connect(buyer1).buy({ value: hre.ethers.parseEther("1") });
+      await expect(presale.connect(buyer1).claimAndStake()).to.be.revertedWith("Presale not ended yet");
+    });
+
+    it("reverts with nothing to claim", async () => {
+      const { presale, buyer1, deadline } = await deploy();
+      await time.increaseTo(deadline + 1n);
+      await expect(presale.connect(buyer1).claimAndStake()).to.be.revertedWith("Nothing to claim");
+    });
+
+    it("transfers claimable to Staking and opens a position", async () => {
+      const { presale, staking, token, buyer1 } = await buyAndEnd();
+      const claimable = await presale.getClaimableNow(buyer1.address);
+      expect(claimable).to.be.gt(0n);
+
+      const stakingBalBefore = await token.balanceOf(await staking.getAddress());
+      const tx = await presale.connect(buyer1).claimAndStake();
+      await tx.wait();
+
+      // Buyer received no tokens directly
+      expect(await token.balanceOf(buyer1.address)).to.equal(0n);
+      // Staking received the full claimable amount as principal
+      expect(await token.balanceOf(await staking.getAddress())).to.equal(stakingBalBefore + claimable);
+
+      const positions = await staking.getPositions(buyer1.address);
+      expect(positions.length).to.equal(1);
+      expect(positions[0].amount).to.equal(claimable);
+      expect(positions[0].reward).to.equal((claimable * 2000n) / 10000n);
+    });
+
+    it("can be combined with regular claim across vesting tranches", async () => {
+      // First: claimAndStake the instant unlock. Later: a regular claim for vested portion.
+      const { presale, staking, token, buyer1, vestingStart } = await buyAndEnd();
+      const totalTokens = (await presale.vestingRecords(buyer1.address, 0)).totalAmount;
+      const instantAmount = (totalTokens * 2500n) / 10000n;
+
+      await presale.connect(buyer1).claimAndStake();
+      const positionsAfterFirst = await staking.getPositions(buyer1.address);
+      expect(positionsAfterFirst[0].amount).to.equal(instantAmount);
+
+      const MONTH = 30n * 24n * 3600n;
+      await time.increaseTo(Number(vestingStart) + Number(MONTH));
+      await presale.connect(buyer1).claim();
+      expect(await token.balanceOf(buyer1.address)).to.be.gt(0n);
+    });
+
+    it("emits ClaimedAndStaked with the position index", async () => {
+      const { presale, buyer1 } = await buyAndEnd();
+      const claimable = await presale.getClaimableNow(buyer1.address);
+      await expect(presale.connect(buyer1).claimAndStake())
+        .to.emit(presale, "ClaimedAndStaked")
+        .withArgs(buyer1.address, claimable, 0n);
     });
   });
 });

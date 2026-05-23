@@ -7,11 +7,21 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title AirdropVault
- * @notice Airdrop allocation (250M FLZY) locked until a fixed unlock date.
- *         Owner (Mustafa) adds whitelisted users with amounts via batch function.
+ * @notice Airdrop allocation (100M FLZY) locked until a fixed unlock date.
+ *         Owner adds whitelisted users via batch function.
  *         Users claim after the unlock date using the claim() function.
+ *
+ *         HARD CAPS (immutable):
+ *           - Each wallet receives exactly AMOUNT_PER_WALLET (10,000 FLZY)
+ *           - Maximum MAX_PARTICIPANTS (10,000) wallets total
+ *           - 10,000 × 10,000 = 100,000,000 FLZY = exactly the vault balance
  */
 contract AirdropVault is Ownable, ReentrancyGuard {
+    // ─── Constants ────────────────────────────────────────────────────────────
+
+    uint256 public constant AMOUNT_PER_WALLET = 10_000e18; // exactly 10,000 FLZY per participant
+    uint256 public constant MAX_PARTICIPANTS   = 10_000;   // hard cap — 10K people × 10K FLZY = 100M
+
     // ─── Types ────────────────────────────────────────────────────────────────
 
     struct AirdropAllocation {
@@ -70,28 +80,30 @@ contract AirdropVault is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Batch add airdrop participants with allocations.
+     * @notice Batch add airdrop participants.
      *         Called by owner after collecting list from Google Sheets.
+     *         Each entry MUST be exactly AMOUNT_PER_WALLET (10,000 FLZY).
+     *         Total participants cannot exceed MAX_PARTICIPANTS (10,000).
+     *         Duplicate addresses are rejected.
      * @param users_   Array of wallet addresses
-     * @param amounts_ Array of token amounts (must match users_ length)
+     * @param amounts_ Array of token amounts — every element must equal AMOUNT_PER_WALLET
      */
     function addAirdropParticipants(address[] calldata users_, uint256[] calldata amounts_) external onlyOwner {
         require(users_.length == amounts_.length, "Length mismatch");
         require(users_.length > 0, "No participants");
+        require(participants.length + users_.length <= MAX_PARTICIPANTS, "Participant cap reached");
 
         for (uint256 i = 0; i < users_.length; i++) {
             address user = users_[i];
             uint256 amount = amounts_[i];
 
             require(user != address(0), "Invalid address");
-            require(amount > 0, "Zero amount");
+            require(amount == AMOUNT_PER_WALLET, "Must be exactly 10000 FLZY");
+            require(allocations[user].totalAmount == 0, "Already added");
 
-            // If user already exists, add to their allocation
-            if (allocations[user].totalAmount == 0) {
-                participants.push(user);
-            }
-            allocations[user].totalAmount += amount;
-            totalAllocated += amount;
+            participants.push(user);
+            allocations[user].totalAmount = AMOUNT_PER_WALLET;
+            totalAllocated += AMOUNT_PER_WALLET;
         }
 
         emit ParticipantsAdded(users_, amounts_);
